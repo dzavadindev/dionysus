@@ -1,0 +1,7 @@
+[workspace]
+members = [
+  "crates/dionysus-core",
+  "crates/dionysus-ui",
+  "crates/dionysus-bin",
+]
+resolver = "2"
