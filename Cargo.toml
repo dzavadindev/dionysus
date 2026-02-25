@@ -1,7 +1,10 @@
-[workspace]
-members = [
-  "crates/dionysus-core",
-  "crates/dionysus-ui",
-  "crates/dionysus-bin",
-]
-resolver = "2"
+[package]
+name="dionysus"
+version="1.0.0"
+edition="2024"
+
+[dependencies]
+freedesktop-file-parser = "0.3.1"
+gtk4 = "0.10.3"
+gtk4-layer-shell = "0.7.1"
+xdg = "3.0.0"
