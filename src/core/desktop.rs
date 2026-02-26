@@ -1,3 +1,4 @@
+use crate::core;
 use freedesktop_file_parser as ffp;
 use std::collections::HashSet;
 use std::fs;
@@ -49,8 +50,8 @@ pub fn get_dot_desktop_files() -> Vec<PathBuf> {
     results
 }
 
-pub fn parse_dot_desktop_files(files: &Vec<PathBuf>) -> Vec<ffp::DesktopFile> {
-    let mut entries: Vec<ffp::DesktopFile> = Vec::new();
+pub fn parse_dot_desktop_files(files: &Vec<PathBuf>) -> Vec<(PathBuf, ffp::DesktopFile)> {
+    let mut entries: Vec<(PathBuf, ffp::DesktopFile)> = Vec::new();
 
     for file in files.iter() {
         let content = match fs::read_to_string(file) {
@@ -69,8 +70,56 @@ pub fn parse_dot_desktop_files(files: &Vec<PathBuf>) -> Vec<ffp::DesktopFile> {
             }
         };
 
-        entries.push(content);
+        entries.push((file.clone(), content));
     }
 
     entries
+}
+
+pub fn desktop_file_to_app_entry(df: &ffp::DesktopFile, path: &Path) -> Option<core::AppEntry> {
+    let app = match &df.entry.entry_type {
+        ffp::EntryType::Application(app) => app,
+        _ => return None,
+    };
+
+    let hidden = df.entry.hidden.unwrap_or(false);
+    let nodisplay = df.entry.no_display.unwrap_or(false);
+    if hidden || nodisplay {
+        return None;
+    }
+
+    let name = df.entry.name.clone().default;
+
+    let exec = app.exec.clone()?;
+
+    let icon = df.entry.icon.clone()?;
+    let terminal = app.terminal.unwrap_or(false);
+
+    let id = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| path.display().to_string());
+
+    Some(core::AppEntry {
+        id,
+        desktop_path: path.to_path_buf(),
+        name,
+        exec,
+        icon: icon_from_iconstring(&icon),
+        terminal,
+        nodisplay,
+        hidden,
+    })
+}
+
+fn icon_from_iconstring(icon: &ffp::IconString) -> Option<core::IconRef> {
+    let s = icon.content.trim();
+    if s.is_empty() {
+        return None;
+    }
+    if s.starts_with('/') {
+        return Some(core::IconRef::FilePath(s.into()));
+    }
+    Some(core::IconRef::ThemedName(s.to_string()))
 }

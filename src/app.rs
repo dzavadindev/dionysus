@@ -1,32 +1,10 @@
 use gtk4::Application;
 use gtk4::prelude::*;
 
-use crate::core::desktop;
+use crate::core;
 use crate::ui::window;
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-
-#[derive(Debug)]
-pub struct AppState {
-    pub frequency: HashMap<String, u64>,
-}
-
-impl AppState {
-    pub fn record_launch(&mut self, id: &str) {
-        *self.frequency.entry(id.to_string()).or_insert(0) += 1;
-    }
-}
-
-pub type SharedState = Arc<Mutex<AppState>>;
-
-pub fn build_context() -> SharedState {
-    Arc::new(Mutex::new(AppState {
-        frequency: Default::default(),
-    }))
-}
-
-fn init_window() {
+fn init_gtk_app() {
     let app = Application::builder()
         .application_id("com.dzavadindev.dionysus")
         .build();
@@ -38,7 +16,28 @@ fn init_window() {
     app.run();
 }
 
-pub fn start(_state: Arc<Mutex<AppState>>) {
-    // init_window();
-    println!("{:?}", _state.lock().unwrap());
+fn init_state() {
+    let file_paths = core::desktop::get_dot_desktop_files();
+    let parsed_files = core::desktop::parse_dot_desktop_files(&file_paths);
+
+    let mut app_entries: Vec<core::AppEntry> = Vec::new();
+
+    for raw_entry in parsed_files.iter() {
+        let app_entry =
+            match core::desktop::desktop_file_to_app_entry(&raw_entry.1, raw_entry.0.as_path()) {
+                Some(some) => some,
+                None => continue,
+            };
+
+        app_entries.push(app_entry);
+    }
+
+    for entry in app_entries.iter() {
+        print!("{:?}\n\n", entry);
+    }
+}
+
+pub fn start(_state: core::SharedState) {
+    // init_gtk_app();
+    init_state();
 }

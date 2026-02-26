@@ -3,6 +3,6 @@ mod core;
 mod ui;
 
 fn main() {
-    let state = app::build_context();
+    let state = core::SharedState::new();
     app::start(state);
 }
