@@ -1,4 +1,5 @@
 pub mod desktop;
+pub mod search;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -20,10 +21,16 @@ pub struct AppEntry {
 
 #[derive(Debug)]
 pub struct AppState {
-    pub frequency: HashMap<String, u64>,
+    pub apps: Vec<AppEntry>,
+    pub freq: HashMap<String, u64>,
 }
 
 #[derive(Clone)]
+pub struct UiHandle {
+    pub window: gtk4::ApplicationWindow,
+}
+
+#[derive(Clone, Debug)]
 pub struct SharedState(Arc<Mutex<AppState>>);
 
 #[derive(Debug, Clone)]
@@ -37,12 +44,21 @@ pub enum IconRef {
 impl AppState {
     pub fn new() -> Self {
         Self {
-            frequency: Default::default(),
+            apps: Default::default(),
+            freq: Default::default(),
         }
     }
 
     pub fn record_launch(&mut self, id: &str) {
-        *self.frequency.entry(id.to_string()).or_insert(0) += 1;
+        self.freq
+            .entry(id.to_string())
+            .and_modify(|e| *e += 1)
+            .or_insert(0);
+    }
+
+    pub fn init_apps(&mut self, apps: &Vec<AppEntry>) {
+        let clone = apps.clone();
+        self.apps = clone;
     }
 }
 
@@ -52,7 +68,6 @@ impl SharedState {
     }
 
     pub fn lock(&self) -> MutexGuard<'_, AppState> {
-        // TODO: :) maybe don't just unwrap
         self.0.lock().unwrap()
     }
 }

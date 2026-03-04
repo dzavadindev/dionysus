@@ -20,7 +20,7 @@ pub fn build_launcher_window(app: &Application) -> ApplicationWindow {
         let window = window.clone();
         move |_, key, _keycode, _state| {
             if key == gdk::Key::Escape {
-                window.close();
+                window.hide();
                 return glib::Propagation::Stop;
             }
             glib::Propagation::Proceed
