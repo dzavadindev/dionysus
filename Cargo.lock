@@ -58,6 +58,7 @@ name = "dionysus"
 version = "1.0.0"
 dependencies = [
  "freedesktop-file-parser",
+ "glib",
  "gtk4",
  "gtk4-layer-shell",
  "xdg 3.0.0",

@@ -19,25 +19,20 @@ pub struct AppEntry {
     pub hidden: bool,
 }
 
+#[derive(Debug, Clone)]
+pub enum IconRef {
+    ThemedName(String),
+    FilePath(PathBuf),
+}
+
 #[derive(Debug)]
 pub struct AppState {
     pub apps: Vec<AppEntry>,
     pub freq: HashMap<String, u64>,
 }
 
-#[derive(Clone)]
-pub struct UiHandle {
-    pub window: gtk4::ApplicationWindow,
-}
-
 #[derive(Clone, Debug)]
 pub struct SharedState(Arc<Mutex<AppState>>);
-
-#[derive(Debug, Clone)]
-pub enum IconRef {
-    ThemedName(String),
-    FilePath(PathBuf),
-}
 
 // ----------- STRUCT IMPLS
 

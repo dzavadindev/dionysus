@@ -1,19 +1,27 @@
-use std::thread;
-
-use gtk4::prelude::*;
+use glib;
 use gtk4::Application;
+use gtk4::prelude::*;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::thread;
 
 use crate::core;
 use crate::ipc;
-use crate::ui::window;
+use crate::ui;
 
-fn init_gtk_app() {
+fn init_gtk_app(state: core::SharedState) {
     let app = Application::builder()
         .application_id("com.dzavadindev.dionysus")
         .build();
 
-    app.connect_activate(|app| {
-        window::build_launcher_window(&app);
+    let s = state.clone();
+
+    // TODO: Put into a general AppRuntime together with state
+    let ui_handle: Rc<RefCell<Option<ui::UiHandle>>> = Rc::new(RefCell::new(None));
+
+    app.connect_activate(move |app| {
+        let ui = ui::build_ui(app, s.clone());
+        *ui_handle.borrow_mut() = Some(ui);
     });
 
     app.run();
@@ -54,5 +62,6 @@ pub fn start(state: core::SharedState) {
         }
     });
 
-    init_gtk_app();
+    let state_building = state.clone();
+    init_gtk_app(state_building);
 }
