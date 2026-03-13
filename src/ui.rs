@@ -65,3 +65,10 @@ pub fn build_ui(app: &gtk4::Application, state: core::SharedState) -> UiHandle {
         entries_list: list_view,
     }
 }
+
+pub fn update_entries(ui: &UiHandle, apps: &[core::AppEntry]) {
+    ui.entries_store.remove_all();
+    for entry in apps {
+        ui.entries_store.append(&aep::AppEntryObject::new(entry));
+    }
+}

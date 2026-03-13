@@ -1,7 +1,7 @@
 // NOTE: This file has a ton of "useless" comments that don't explain the reason,
 // but actually just explain code. `glib` is something else, so I really need
 // many of those clarifications to even read this code
-//
+// . . .
 // And if I am being honest, I am still re-reading this trying to
 // understand what is happening
 // ------------------------------------------------------------------------------

@@ -1,3 +1,7 @@
+// NOTE: I actually don't need this for anything :crying:
+// app.connect_activate() and app.connect_startup() do the job
+// I am keeping it nonetheless, maybe I will need some IPC for something else ???
+
 use std::ffi::OsString;
 use std::io::{self, Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
