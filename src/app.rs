@@ -1,4 +1,3 @@
-use glib;
 use gtk4::Application;
 use gtk4::prelude::*;
 use std::cell::RefCell;
@@ -9,19 +8,18 @@ use crate::core;
 use crate::ipc;
 use crate::ui;
 
-fn init_gtk_app(state: core::SharedState) {
+fn init_gtk_app(state: core::SharedState, ui_handle: Rc<RefCell<Option<ui::UiHandle>>>) {
     let app = Application::builder()
         .application_id("com.dzavadindev.dionysus")
         .build();
 
     let s = state.clone();
 
-    // TODO: Put into a general AppRuntime together with state
-    let ui_handle: Rc<RefCell<Option<ui::UiHandle>>> = Rc::new(RefCell::new(None));
-
+    let h = ui_handle.clone();
     app.connect_activate(move |app| {
         let ui = ui::build_ui(app, s.clone());
-        *ui_handle.borrow_mut() = Some(ui);
+        ui.main_window.present();
+        *h.borrow_mut() = Some(ui);
     });
 
     app.run();
@@ -49,19 +47,15 @@ fn populate_app_entries(state: core::SharedState) {
 }
 
 pub fn start(state: core::SharedState) {
-    let state_populating = state.clone();
+    let runtime = core::AppRuntime {
+        state,
+        ui: Rc::new(RefCell::new(None)),
+    };
 
+    let state_populating = runtime.state.clone();
     thread::spawn(move || {
         populate_app_entries(state_populating);
     });
 
-    let _ = ipc::start_listener(|command| {
-        if command == ipc::TOGGLE_COMMAND {
-            // TODO: Wire this to the GTK main thread to show/hide the window.
-            println!("toggle requested");
-        }
-    });
-
-    let state_building = state.clone();
-    init_gtk_app(state_building);
+    init_gtk_app(runtime.state.clone(), runtime.ui.clone());
 }

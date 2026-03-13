@@ -1,11 +1,14 @@
 pub mod desktop;
 pub mod search;
 
+use crate::ui;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-// ----------- STATE STRUCTS
+// ----------- STRUCTS
 
 #[derive(Clone, Debug)]
 pub struct AppEntry {
@@ -25,6 +28,8 @@ pub enum IconRef {
     FilePath(PathBuf),
 }
 
+// ----------- STATE
+
 #[derive(Debug)]
 pub struct AppState {
     pub apps: Vec<AppEntry>,
@@ -33,6 +38,11 @@ pub struct AppState {
 
 #[derive(Clone, Debug)]
 pub struct SharedState(Arc<Mutex<AppState>>);
+
+pub struct AppRuntime {
+    pub state: SharedState,
+    pub ui: Rc<RefCell<Option<ui::UiHandle>>>,
+}
 
 // ----------- STRUCT IMPLS
 
