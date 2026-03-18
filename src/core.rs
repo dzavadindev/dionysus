@@ -1,11 +1,8 @@
 pub mod desktop;
 pub mod search;
 
-use crate::ui;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 // ----------- STRUCTS
@@ -41,7 +38,6 @@ pub struct SharedState(Arc<Mutex<AppState>>);
 
 pub struct AppRuntime {
     pub state: SharedState,
-    pub ui: Rc<RefCell<Option<ui::UiHandle>>>,
 }
 
 // ----------- STRUCT IMPLS
@@ -61,9 +57,8 @@ impl AppState {
             .or_insert(0);
     }
 
-    pub fn init_apps(&mut self, apps: &Vec<AppEntry>) {
-        let clone = apps.clone();
-        self.apps = clone;
+    pub fn init_apps(&mut self, apps: Vec<AppEntry>) {
+        self.apps = apps;
     }
 }
 

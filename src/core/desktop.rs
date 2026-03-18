@@ -50,11 +50,11 @@ pub fn get_dot_desktop_files() -> Vec<PathBuf> {
     results
 }
 
-pub fn parse_dot_desktop_files(files: &Vec<PathBuf>) -> Vec<(PathBuf, ffp::DesktopFile)> {
+pub fn parse_dot_desktop_files(files: Vec<PathBuf>) -> Vec<(PathBuf, ffp::DesktopFile)> {
     let mut entries: Vec<(PathBuf, ffp::DesktopFile)> = Vec::new();
 
-    for file in files.iter() {
-        let content = match fs::read_to_string(file) {
+    for file in files {
+        let content = match fs::read_to_string(&file) {
             Ok(ok) => ok,
             Err(_err) => {
                 // TODO: Non-existent file, invalid format, whatnot?
@@ -70,7 +70,7 @@ pub fn parse_dot_desktop_files(files: &Vec<PathBuf>) -> Vec<(PathBuf, ffp::Deskt
             }
         };
 
-        entries.push((file.clone(), content));
+        entries.push((file, content));
     }
 
     entries

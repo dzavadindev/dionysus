@@ -1,4 +1,4 @@
-mod app_entry_object;
+pub mod app_entry_object;
 mod list_item_factory;
 mod window;
 
@@ -7,6 +7,10 @@ use app_entry_object as aep;
 use gtk4::gio;
 use gtk4::prelude::*;
 use list_item_factory as lif;
+
+thread_local! {
+    pub static UI_HANDLE: std::cell::RefCell<Option<UiHandle>> = std::cell::RefCell::new(None);
+}
 
 // -------- STRUCTS
 
@@ -27,14 +31,12 @@ pub fn build_ui(app: &gtk4::Application, state: core::SharedState) -> UiHandle {
     // Create the model (store)
     let store = gio::ListStore::new::<aep::AppEntryObject>();
 
-    // Fill the model with GObject converted AppEntries
-    let apps = {
+    {
+        // Fill the model with GObject converted AppEntries
         let s = state.lock();
-        s.apps.clone()
-    };
-
-    for entry in apps {
-        store.append(&aep::AppEntryObject::new(&entry));
+        for entry in &s.apps {
+            store.append(&aep::AppEntryObject::new(&entry));
+        }
     }
 
     // Selection model
