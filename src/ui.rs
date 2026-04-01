@@ -1,4 +1,5 @@
 pub mod app_entry_object;
+mod list_item;
 mod list_item_factory;
 mod window;
 

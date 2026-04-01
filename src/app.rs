@@ -39,6 +39,8 @@ fn build_application(runtime: &core::AppRuntime) -> Application {
     app.connect_startup(move |app| {
         let ui = ui::build_ui(app, s.clone());
         ui.main_window.present();
+        ui.selection_model.set_selected(0);
+        ui.entries_list.grab_focus();
         ui::UI_HANDLE.with(|cell| {
             *cell.borrow_mut() = Some(ui);
         });
@@ -51,6 +53,8 @@ fn build_application(runtime: &core::AppRuntime) -> Application {
                     ui.main_window.hide();
                 } else {
                     ui.main_window.present();
+                    ui.selection_model.set_selected(0);
+                    ui.entries_list.grab_focus();
                 }
             };
         });

@@ -41,7 +41,7 @@ mod imp {
         pub name: RefCell<String>,
     }
 
-    // This struct is the implementation of a custom GLib object subclass.
+    // This trait is the implementation of a custom GLib object subclass.
     //
     // It generates boilerplate for registering this type with GLib's runtime
     // type system.
@@ -59,16 +59,13 @@ mod imp {
         type Type = super::AppEntryObject;
     }
 
-    // `ObjectImpl` defines the behavior of a basic `glib::Object`.
-    //
-    // `ObjectSubclass` says:
+    // `ObjectSubclass`
     //   "this is a new object type"
     //
-    // `ObjectImpl` says:
+    // `ObjectImpl`
+    //    defines the behavior of a basic `glib::Object`
     //   "here is how that object behaves"
-    // - what properties exist
-    // - how to set them
-    // - how to read them
+    //
     impl ObjectImpl for AppEntryObject {
         // This function tells GLib which properties this object exposes.
         //
@@ -144,7 +141,6 @@ impl AppEntryObject {
     // A simple constructor that converts and AppEntry
     // into a GTK-friendly AppEntryObject.
     pub fn new(entry: &AppEntry) -> Self {
-        // This creates a new GLib object and sets its properties.
         // Each `.property(...)` call will end up calling ObjectImpl::set_property(...)
         // implementation above.
         glib::Object::builder()
@@ -153,19 +149,10 @@ impl AppEntryObject {
             .build()
     }
 
-    // Helper getter for the "id" property.
-    //
-    // This is nicer than writing:
-    // self.property::<String>("id")
-    // everywhere in your code.
-    //
     pub fn id(&self) -> String {
         self.property::<String>("id")
     }
 
-    //
-    // Helper getter for the "name" property.
-    //
     pub fn name(&self) -> String {
         self.property::<String>("name")
     }

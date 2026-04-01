@@ -1,6 +1,5 @@
 mod app;
 mod core;
-mod ipc;
 mod ui;
 
 use std::env;
