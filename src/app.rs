@@ -1,5 +1,6 @@
+use freedesktop_desktop_entry as fde;
 use gtk4::prelude::*;
-use gtk4::{Application, gio, glib};
+use gtk4::{gio, glib, Application};
 use std::collections::HashMap;
 use std::thread;
 
@@ -9,17 +10,16 @@ use crate::ui;
 const APPLICATION_ID: &str = "com.dzavadindev.dionysus";
 
 fn populate_app_entries(state: core::SharedState) {
-    let file_paths = core::desktop::get_dot_desktop_files();
-    let parsed_files = core::desktop::parse_dot_desktop_files(file_paths);
+    let locales = fde::get_languages_from_env();
+    let parsed_files = core::desktop::parse_dot_desktop_files(&locales);
 
     let mut app_entries: Vec<core::AppEntry> = Vec::new();
     let mut positions: HashMap<String, usize> = HashMap::new();
     for (idx, raw_entry) in parsed_files.iter().enumerate() {
-        let app_entry =
-            match core::desktop::desktop_file_to_app_entry(&raw_entry.1, raw_entry.0.as_path()) {
-                Some(some) => some,
-                None => continue,
-            };
+        let app_entry = match core::desktop::desktop_file_to_app_entry(raw_entry, &locales) {
+            Some(some) => some,
+            None => continue,
+        };
 
         app_entries.push(app_entry.clone());
         positions.insert(app_entry.id, idx);

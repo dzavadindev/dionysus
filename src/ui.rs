@@ -1,4 +1,5 @@
 pub mod app_entry_object;
+
 mod list_item;
 mod list_item_factory;
 mod window;
@@ -49,6 +50,32 @@ pub fn build_ui(app: &gtk4::Application, state: core::SharedState) -> UiHandle {
     // Create the view, pass the model to it
     let list_view = gtk4::ListView::new(Some(selection_model.clone()), Some(factory.clone()));
     list_view.set_vexpand(true);
+    list_view.connect_activate({
+        let selection = selection_model.clone();
+        let window = window.clone();
+        let state = state.clone();
+
+        move |_view, position| {
+            let obj = selection
+                .model()
+                .and_then(|m| m.item(position))
+                .and_downcast::<aep::AppEntryObject>();
+
+            let exec = obj.and_then(|obj| {
+                let s = state.lock();
+                s.apps
+                    .iter()
+                    .find(|app| app.id == obj.id())
+                    .map(|app| app.exec.clone())
+            });
+
+            if let Some(exec) = exec {
+                if core::desktop::launch_exec(&exec).is_ok() {
+                    window.hide();
+                }
+            }
+        }
+    });
 
     // Build the scrolling view here
     let scrolled_list = gtk4::ScrolledWindow::builder()

@@ -7,7 +7,9 @@
 // ------------------------------------------------------------------------------
 
 use crate::core::AppEntry;
+use crate::core::IconRef;
 use glib::subclass::prelude::*;
+use gtk4::gio::ThemedIcon;
 use gtk4::glib::{self, object::ObjectExt, value::ToValue};
 use std::cell::RefCell;
 
@@ -39,6 +41,8 @@ mod imp {
     pub struct AppEntryObject {
         pub id: RefCell<String>,
         pub name: RefCell<String>,
+        pub exec: RefCell<String>,
+        pub icon: RefCell<String>,
     }
 
     // This trait is the implementation of a custom GLib object subclass.
@@ -79,6 +83,8 @@ mod imp {
                 vec![
                     ParamSpecString::builder("id").build(),
                     ParamSpecString::builder("name").build(),
+                    ParamSpecString::builder("icon").build(),
+                    ParamSpecString::builder("exec").build(),
                 ]
             });
 
@@ -102,6 +108,14 @@ mod imp {
                     let input: String = value.get().unwrap();
                     self.name.replace(input);
                 }
+                "exec" => {
+                    let input: String = value.get().unwrap();
+                    self.exec.replace(input);
+                }
+                "icon" => {
+                    let input: String = value.get().unwrap();
+                    self.icon.replace(input);
+                }
                 _ => {
                     // If GLib asks for a property we did not define,
                     // that's a programmer error.
@@ -121,6 +135,8 @@ mod imp {
                     self.id.borrow().to_value()
                 }
                 "name" => self.name.borrow().to_value(),
+                "exec" => self.exec.borrow().to_value(),
+                "icon" => self.icon.borrow().to_value(),
                 _ => unimplemented!(),
             }
         }
@@ -143,9 +159,20 @@ impl AppEntryObject {
     pub fn new(entry: &AppEntry) -> Self {
         // Each `.property(...)` call will end up calling ObjectImpl::set_property(...)
         // implementation above.
+
+        let mut icon_string: String = String::from("");
+        if let Some(icon_ref) = &entry.icon {
+            icon_string = match icon_ref {
+                IconRef::ThemedName(name) => name.to_string(),
+                IconRef::FilePath(path) => path.to_string_lossy().to_string(),
+            };
+        }
+
         glib::Object::builder()
             .property("id", &entry.id)
             .property("name", &entry.name)
+            .property("exec", &entry.exec)
+            .property("icon", icon_string)
             .build()
     }
 
@@ -155,5 +182,13 @@ impl AppEntryObject {
 
     pub fn name(&self) -> String {
         self.property::<String>("name")
+    }
+
+    pub fn exec(&self) -> String {
+        self.property::<String>("exec")
+    }
+
+    pub fn icon(&self) -> String {
+        self.property::<String>("icon")
     }
 }

@@ -1,125 +1,103 @@
 use crate::core;
-use freedesktop_file_parser as ffp;
-use std::collections::HashSet;
-use std::fs;
-use std::path::{Path, PathBuf};
 
-fn collect_desktop_files(dir: &Path, seen: &mut HashSet<PathBuf>, results: &mut Vec<PathBuf>) {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(_) => return,
-    };
+use freedesktop_desktop_entry as fde;
+use std::process::{Command, Stdio};
 
-    for entry in entries {
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(_) => continue,
-        };
-
-        let path = entry.path();
-        if path.is_dir() {
-            collect_desktop_files(&path, seen, results);
-            continue;
-        }
-
-        if path.extension() == Some(std::ffi::OsStr::new("desktop")) {
-            if seen.insert(path.clone()) {
-                results.push(path);
-            }
-        }
-    }
+pub fn parse_dot_desktop_files(locales: &[String]) -> Vec<fde::DesktopEntry> {
+    fde::Iter::new(fde::default_paths())
+        .entries(Some(locales))
+        .collect()
 }
 
-pub fn get_dot_desktop_files() -> Vec<PathBuf> {
-    let xdg_dirs = xdg::BaseDirectories::new();
-    let mut data_dirs = xdg_dirs.get_data_dirs();
-    if let Some(data_home) = xdg_dirs.get_data_home() {
-        if !data_dirs.contains(&data_home) {
-            data_dirs.push(data_home);
-        }
-    }
-
-    let mut results = Vec::new();
-    let mut seen = std::collections::HashSet::new();
-
-    for data_dir in data_dirs {
-        let applications_dir = data_dir.join("applications");
-        collect_desktop_files(&applications_dir, &mut seen, &mut results);
-    }
-
-    results
-}
-
-pub fn parse_dot_desktop_files(files: Vec<PathBuf>) -> Vec<(PathBuf, ffp::DesktopFile)> {
-    let mut entries: Vec<(PathBuf, ffp::DesktopFile)> = Vec::new();
-
-    for file in files {
-        let content = match fs::read_to_string(&file) {
-            Ok(ok) => ok,
-            Err(_err) => {
-                // TODO: Non-existent file, invalid format, whatnot?
-                continue;
-            }
-        };
-
-        let content = match freedesktop_file_parser::parse(&content) {
-            Ok(ok) => ok,
-            Err(_err) => {
-                // TODO: If failed to parse the file, exclude it from the state. Update the warnings
-                continue;
-            }
-        };
-
-        entries.push((file, content));
-    }
-
-    entries
-}
-
-pub fn desktop_file_to_app_entry(df: &ffp::DesktopFile, path: &Path) -> Option<core::AppEntry> {
-    let app = match &df.entry.entry_type {
-        ffp::EntryType::Application(app) => app,
-        _ => return None,
-    };
-
-    let hidden = df.entry.hidden.unwrap_or(false);
-    let nodisplay = df.entry.no_display.unwrap_or(false);
+pub fn desktop_file_to_app_entry(
+    entry: &fde::DesktopEntry,
+    locales: &[String],
+) -> Option<core::AppEntry> {
+    let hidden = entry.hidden();
+    let nodisplay = entry.no_display();
     if hidden || nodisplay {
         return None;
     }
 
-    let name = df.entry.name.clone().default;
+    let name = entry
+        .full_name(locales)
+        .or_else(|| entry.name(locales))
+        .map(|name| name.into_owned())
+        .unwrap_or_else(|| entry.appid.clone());
 
-    let exec = app.exec.clone()?;
+    let exec = entry.exec()?.to_string();
+    let terminal = entry.terminal();
+    let id = entry.id().to_string();
+    let desktop_path = entry.path.clone();
 
-    let icon = df.entry.icon.clone()?;
-    let terminal = app.terminal.unwrap_or(false);
-
-    let id = path
-        .file_name()
-        .and_then(|s| s.to_str())
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| path.display().to_string());
+    let icon = entry
+        .icon()
+        .map(fde::IconSource::from_unknown)
+        .and_then(icon_from_source);
 
     Some(core::AppEntry {
         id,
-        desktop_path: path.to_path_buf(),
+        desktop_path,
         name,
         exec,
-        icon: icon_from_iconstring(&icon),
+        icon,
         terminal,
         nodisplay,
         hidden,
     })
 }
 
-fn icon_from_iconstring(icon: &ffp::IconString) -> Option<core::IconRef> {
-    let s = icon.content.trim();
-    if s.is_empty() {
-        return None;
+fn icon_from_source(icon: fde::IconSource) -> Option<core::IconRef> {
+    match icon {
+        fde::IconSource::Name(name) => Some(core::IconRef::ThemedName(name)),
+        fde::IconSource::Path(path) => Some(core::IconRef::FilePath(path)),
     }
-    if s.starts_with('/') {
-        return Some(core::IconRef::FilePath(s.into()));
+}
+
+pub enum LaunchError {
+    EmptyCommand,
+    Io(std::io::Error),
+}
+
+impl From<std::io::Error> for LaunchError {
+    fn from(value: std::io::Error) -> Self {
+        LaunchError::Io(value)
     }
-    Some(core::IconRef::ThemedName(s.to_string()))
+}
+
+fn strip_exec_fields(exec: &str) -> &str {
+    match exec.find('%') {
+        Some(idx) => exec[..idx].trim_end(),
+        None => exec.trim(),
+    }
+}
+
+pub fn exec_to_argv(exec: &str) -> Result<Vec<String>, LaunchError> {
+    let cleaned = strip_exec_fields(exec);
+    if cleaned.is_empty() {
+        return Err(LaunchError::EmptyCommand);
+    }
+
+    let argv = cleaned
+        .split_whitespace()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+
+    if argv.is_empty() {
+        return Err(LaunchError::EmptyCommand);
+    }
+
+    Ok(argv)
+}
+
+pub fn launch_exec(exec: &str) -> Result<(), LaunchError> {
+    let argv = exec_to_argv(exec)?;
+    let (program, args) = argv.split_first().ok_or(LaunchError::EmptyCommand)?;
+    Command::new(program)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
+    Ok(())
 }
