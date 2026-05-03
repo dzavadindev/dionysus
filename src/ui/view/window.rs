@@ -7,17 +7,14 @@ use gtk4_layer_shell::{KeyboardMode, Layer, LayerShell};
 pub fn build_main_window(app: &Application) -> ApplicationWindow {
     let window = gtk4::ApplicationWindow::new(app);
 
-    // Base properties
     window.set_decorated(false);
     window.set_resizable(false);
     window.set_default_size(700, 420);
 
-    // Layer Shell init
     window.init_layer_shell();
     window.set_layer(Layer::Overlay);
     window.set_namespace(Some("dionysus"));
 
-    // Keyboard presses handling
     let controller = EventControllerKey::new();
     controller.connect_key_pressed({
         let window = window.clone();

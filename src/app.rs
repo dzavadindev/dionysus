@@ -2,6 +2,7 @@ use freedesktop_desktop_entry as fde;
 use gtk4::prelude::*;
 use gtk4::{Application, gio, glib};
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::thread;
 
 use crate::core;
@@ -9,7 +10,7 @@ use crate::ui;
 
 const APPLICATION_ID: &str = "com.dzavadindev.dionysus";
 
-fn populate_app_entries(state: core::SharedState) {
+fn populate_app_entries() -> Vec<core::AppEntry> {
     let locales = fde::get_languages_from_env();
     let parsed_files = core::desktop::parse_dot_desktop_files(&locales);
 
@@ -25,8 +26,7 @@ fn populate_app_entries(state: core::SharedState) {
         positions.insert(app_entry.id, idx);
     }
 
-    let mut s = state.lock();
-    s.init_apps(app_entries);
+    app_entries
 }
 
 fn build_application(runtime: &core::AppRuntime) -> Application {
@@ -38,21 +38,46 @@ fn build_application(runtime: &core::AppRuntime) -> Application {
 
     app.connect_startup(move |app| {
         let ui = ui::build_ui(app, s.clone());
-        ui::prepare_for_show(&ui);
-        ui::UI_HANDLE.with(|cell| {
-            *cell.borrow_mut() = Some(ui);
-        });
-    });
+        let controller = Rc::new(ui::UiController::new(ui, s.clone()));
+        let search_worker = core::search_worker::spawn_search_worker(5);
+        controller.attach_search_sender(search_worker.command_tx.clone());
+        controller.bind_events();
+        controller.prepare_for_show();
 
-    app.connect_activate(move |_| {
-        ui::UI_HANDLE.with(|cell| {
-            if let Some(ui) = cell.borrow_mut().as_mut() {
-                if ui.main_window.is_visible() {
-                    ui.main_window.hide();
-                } else {
-                    ui::prepare_for_show(ui);
+        // Poll search results on GTK thread and refresh visible entries.
+        glib::idle_add_local({
+            let controller = controller.clone();
+            let result_rx = search_worker.result_rx;
+            move || match result_rx.try_recv() {
+                Ok(result) => {
+                    controller.update_entries(&result.items);
+                    glib::ControlFlow::Continue
                 }
+                Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => glib::ControlFlow::Break,
+            }
+        });
+
+        app.connect_activate({
+            let controller = controller.clone();
+            move |_| {
+                controller.toggle_visibility();
+            }
+        });
+
+        let state_populating = s.clone();
+        let search_tx = search_worker.command_tx.clone();
+        thread::spawn(move || {
+            let apps = populate_app_entries();
+            let freq = {
+                let mut state = state_populating.lock();
+                state.init_apps(apps.clone());
+                state.freq.clone()
             };
+
+            let _ = search_tx.send(core::search_worker::SearchCommand::ReloadApps(apps));
+            let _ = search_tx.send(core::search_worker::SearchCommand::UpdateFreq(freq));
+            let _ = search_tx.send(core::search_worker::SearchCommand::Query(String::new()));
         });
     });
 
@@ -63,6 +88,16 @@ pub fn run_daemon() {
     let runtime = core::AppRuntime {
         state: core::SharedState::new(),
     };
+
+    match core::freq_store::load_freq() {
+        Ok(freq) => {
+            let mut state = runtime.state.lock();
+            state.freq = freq;
+        }
+        Err(err) => {
+            eprintln!("Failed to load frequency state: {err}");
+        }
+    }
 
     let application = build_application(&runtime);
 
@@ -75,21 +110,6 @@ pub fn run_daemon() {
         println!("An instance of dionysus is already running");
         return;
     }
-
-    let state_populating = runtime.state.clone();
-    let state_for_ui = runtime.state.clone();
-    thread::spawn(move || {
-        populate_app_entries(state_populating);
-
-        glib::MainContext::default().invoke(move || {
-            ui::UI_HANDLE.with(|cell| {
-                if let Some(ui_handle) = cell.borrow_mut().as_mut() {
-                    let s = state_for_ui.lock();
-                    ui::update_entries(&ui_handle, &s.apps);
-                }
-            })
-        });
-    });
 
     application.run();
 }

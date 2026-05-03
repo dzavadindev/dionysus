@@ -1,5 +1,7 @@
 pub mod desktop;
+pub mod freq_store;
 pub mod search;
+pub mod search_worker;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -54,7 +56,7 @@ impl AppState {
         self.freq
             .entry(id.to_string())
             .and_modify(|e| *e += 1)
-            .or_insert(0);
+            .or_insert(1);
     }
 
     pub fn init_apps(&mut self, apps: Vec<AppEntry>) {

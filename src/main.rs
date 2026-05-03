@@ -58,7 +58,7 @@ EXAMPLES:
     Toggle the launcher window:
         dionysus toggle
 
-    Typical window manager binding:
+    Hyprland binding:
         bind = SUPER, Space, exec, dionysus toggle"
     );
 }

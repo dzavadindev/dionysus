@@ -2,7 +2,7 @@ use gtk4::glib::{self, subclass::prelude::*};
 use gtk4::prelude::*;
 use gtk4::subclass::prelude::*;
 
-use crate::ui::app_entry_object as aep;
+use crate::ui::model::app_entry_object as aep;
 
 mod imp {
     use super::*;
