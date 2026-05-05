@@ -42,9 +42,6 @@ COMMANDS:
     toggle
         Toggle the launcher window.
 
-        If the launcher UI is hidden, it will be shown.
-        If the launcher UI is visible, it will be hidden.
-
         This command requires that the launcher has already been started
         with `dionysus init`.
 

@@ -2,7 +2,6 @@ use freedesktop_desktop_entry as fde;
 use gtk4::prelude::*;
 use gtk4::{Application, gio, glib};
 use std::collections::HashMap;
-use std::cell::Cell;
 use std::rc::Rc;
 use std::thread;
 
@@ -74,11 +73,7 @@ fn build_application(runtime: &core::AppRuntime) -> Application {
 
         app.connect_activate({
             let controller = controller.clone();
-            let first_activation = Rc::new(Cell::new(true));
             move |_| {
-                if first_activation.replace(false) {
-                    return;
-                }
                 controller.toggle_visibility();
             }
         });

@@ -81,12 +81,11 @@ pub fn update_window_height(ui: &UiHandle) {
     let list_height = items.saturating_mul(ROW_HEIGHT_ESTIMATE);
     let unclamped = PROMPT_HEIGHT_ESTIMATE + CHROME_HEIGHT_ESTIMATE + list_height;
     let target_height = unclamped.clamp(WINDOW_MIN_HEIGHT, WINDOW_MAX_HEIGHT);
-    let max_list_height = (WINDOW_MAX_HEIGHT - PROMPT_HEIGHT_ESTIMATE - CHROME_HEIGHT_ESTIMATE).max(0);
+    let max_list_height =
+        (WINDOW_MAX_HEIGHT - PROMPT_HEIGHT_ESTIMATE - CHROME_HEIGHT_ESTIMATE).max(0);
 
-    ui.scrolled_window
-        .set_max_content_height(max_list_height);
+    ui.scrolled_window.set_max_content_height(max_list_height);
     ui.scrolled_window
         .set_min_content_height(list_height.min(max_list_height));
-    ui.main_window
-        .set_default_size(WINDOW_WIDTH, target_height);
+    ui.main_window.set_default_size(WINDOW_WIDTH, target_height);
 }
