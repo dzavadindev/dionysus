@@ -7,11 +7,8 @@ use gtk4::prelude::*;
 use crate::core;
 use crate::core::search_worker::SearchCommand;
 use crate::ui::UiHandle;
-use crate::ui::controller::activation::{activate_position, activate_selected};
-use crate::ui::controller::keyboard::{
-    route_backspace_to_prompt, route_delete_to_prompt, route_text_key_to_prompt,
-};
-use crate::ui::controller::selection::{focus_list_for_navigation, select_next, select_prev};
+use crate::ui::controller::activation::activate_position;
+use crate::ui::controller::keyboard::handle_global_key;
 use crate::ui::controller::visibility::prepare_for_show;
 
 pub struct UiController {
@@ -45,15 +42,22 @@ impl UiController {
                 }
             });
 
-        let prompt_keys = gtk4::EventControllerKey::new();
+        let global_keys = gtk4::EventControllerKey::new();
+        global_keys.set_propagation_phase(gtk4::PropagationPhase::Capture);
         let weak = Rc::downgrade(self);
-        prompt_keys.connect_key_pressed(move |_, key, _keycode, state| {
+        global_keys.connect_key_pressed(move |_, key, _keycode, _state| {
             if let Some(controller) = weak.upgrade() {
-                return controller.on_prompt_key(key, state);
+                return handle_global_key(
+                    key,
+                    &controller.ui.selection_model,
+                    &controller.ui.entries_list,
+                    &controller.state,
+                    &controller.ui.main_window,
+                );
             }
             gtk4::glib::Propagation::Proceed
         });
-        self.ui.prompt.add_controller(prompt_keys);
+        self.ui.main_window.add_controller(global_keys);
 
         let weak = Rc::downgrade(self);
         self.ui.prompt.connect_changed(move |_| {
@@ -61,16 +65,6 @@ impl UiController {
                 controller.on_prompt_changed();
             }
         });
-
-        let list_keys = gtk4::EventControllerKey::new();
-        let weak = Rc::downgrade(self);
-        list_keys.connect_key_pressed(move |_, key, _keycode, state| {
-            if let Some(controller) = weak.upgrade() {
-                return controller.on_list_key(key, state);
-            }
-            gtk4::glib::Propagation::Proceed
-        });
-        self.ui.entries_list.add_controller(list_keys);
     }
 
     pub fn prepare_for_show(&self) {
@@ -101,45 +95,6 @@ impl UiController {
             &self.ui.main_window,
             position,
         );
-    }
-
-    pub fn on_prompt_key(
-        &self,
-        key: gtk4::gdk::Key,
-        _state: gtk4::gdk::ModifierType,
-    ) -> gtk4::glib::Propagation {
-        match key {
-            gtk4::gdk::Key::Up => {
-                select_prev(&self.ui.selection_model);
-                focus_list_for_navigation(&self.ui.selection_model, &self.ui.entries_list);
-                gtk4::glib::Propagation::Stop
-            }
-            gtk4::gdk::Key::Down => {
-                select_next(&self.ui.selection_model);
-                focus_list_for_navigation(&self.ui.selection_model, &self.ui.entries_list);
-                gtk4::glib::Propagation::Stop
-            }
-            gtk4::gdk::Key::Return | gtk4::gdk::Key::KP_Enter => {
-                activate_selected(&self.ui.selection_model, &self.state, &self.ui.main_window);
-                gtk4::glib::Propagation::Stop
-            }
-            _ => gtk4::glib::Propagation::Proceed,
-        }
-    }
-
-    pub fn on_list_key(
-        &self,
-        key: gtk4::gdk::Key,
-        state: gtk4::gdk::ModifierType,
-    ) -> gtk4::glib::Propagation {
-        if route_text_key_to_prompt(&self.ui.prompt, key, state)
-            || route_backspace_to_prompt(&self.ui.prompt, key)
-            || route_delete_to_prompt(&self.ui.prompt, key)
-        {
-            gtk4::glib::Propagation::Stop
-        } else {
-            gtk4::glib::Propagation::Proceed
-        }
     }
 
     fn on_prompt_changed(self: &Rc<Self>) {

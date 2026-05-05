@@ -1,57 +1,29 @@
-use gtk4::prelude::*;
+use crate::core;
+use crate::ui::controller::activation::activate_selected;
+use crate::ui::controller::selection::{focus_list_for_navigation, select_next, select_prev};
 
-pub fn route_text_key_to_prompt(
-    prompt: &gtk4::Entry,
+pub fn handle_global_key(
     key: gtk4::gdk::Key,
-    state: gtk4::gdk::ModifierType,
-) -> bool {
-    if state.intersects(
-        gtk4::gdk::ModifierType::CONTROL_MASK
-            | gtk4::gdk::ModifierType::ALT_MASK
-            | gtk4::gdk::ModifierType::META_MASK,
-    ) {
-        return false;
+    selection_model: &gtk4::SingleSelection,
+    entries_list: &gtk4::ListView,
+    state: &core::SharedState,
+    main_window: &gtk4::ApplicationWindow,
+) -> gtk4::glib::Propagation {
+    match key {
+        gtk4::gdk::Key::Up => {
+            select_prev(selection_model);
+            focus_list_for_navigation(selection_model, entries_list);
+            gtk4::glib::Propagation::Stop
+        }
+        gtk4::gdk::Key::Down => {
+            select_next(selection_model);
+            focus_list_for_navigation(selection_model, entries_list);
+            gtk4::glib::Propagation::Stop
+        }
+        gtk4::gdk::Key::Return | gtk4::gdk::Key::KP_Enter => {
+            activate_selected(selection_model, state, main_window);
+            gtk4::glib::Propagation::Stop
+        }
+        _ => gtk4::glib::Propagation::Proceed,
     }
-
-    let ch = match key.to_unicode() {
-        Some(ch) => ch,
-        None => return false,
-    };
-
-    if ch.is_control() {
-        return false;
-    }
-
-    prompt.grab_focus();
-    let mut pos = prompt.position();
-    let text = ch.to_string();
-    prompt.insert_text(&text, &mut pos);
-    prompt.set_position(pos);
-    true
-}
-
-pub fn route_backspace_to_prompt(prompt: &gtk4::Entry, key: gtk4::gdk::Key) -> bool {
-    if key != gtk4::gdk::Key::BackSpace {
-        return false;
-    }
-
-    prompt.grab_focus();
-    let pos = prompt.position();
-    if pos > 0 {
-        prompt.delete_text(pos - 1, pos);
-        prompt.set_position(pos - 1);
-    }
-    true
-}
-
-pub fn route_delete_to_prompt(prompt: &gtk4::Entry, key: gtk4::gdk::Key) -> bool {
-    if key != gtk4::gdk::Key::Delete {
-        return false;
-    }
-
-    prompt.grab_focus();
-    let pos = prompt.position();
-    prompt.delete_text(pos, pos + 1);
-    prompt.set_position(pos);
-    true
 }

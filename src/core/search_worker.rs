@@ -1,10 +1,7 @@
 use crate::core::AppEntry;
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::mpsc;
 use std::thread;
-
-const SCORE_EPSILON: f64 = 0.12;
 
 #[derive(Debug)]
 pub enum SearchCommand {
@@ -84,13 +81,11 @@ fn rank_apps(
         })
         .collect();
 
-    scored.sort_by(|(_, score_a, freq_a), (_, score_b, freq_b)| {
-        let score_diff = (score_b - score_a).abs();
-        if score_diff <= SCORE_EPSILON {
-            return freq_b.cmp(freq_a);
-        }
-
-        score_b.partial_cmp(score_a).unwrap_or(Ordering::Equal)
+    scored.sort_by(|(app_a, score_a, freq_a), (app_b, score_b, freq_b)| {
+        score_b
+            .total_cmp(score_a)
+            .then_with(|| freq_b.cmp(freq_a))
+            .then_with(|| app_a.id.cmp(&app_b.id))
     });
 
     scored
@@ -128,3 +123,7 @@ fn fuzzy_score(query: &str, candidate: &str) -> Option<f64> {
         None
     }
 }
+
+#[cfg(test)]
+#[path = "search_worker/tests.rs"]
+mod tests;

@@ -9,7 +9,7 @@ pub fn build_main_window(app: &Application) -> ApplicationWindow {
 
     window.set_decorated(false);
     window.set_resizable(false);
-    window.set_default_size(700, 420);
+    window.set_default_size(700, 140);
 
     window.init_layer_shell();
     window.set_layer(Layer::Overlay);
