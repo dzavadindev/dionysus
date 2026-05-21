@@ -4,6 +4,20 @@ A Rust GTK4 application launcher for Wayland.
 
 _"dionysus" is currently a working title._
 
+## Installing 
+
+### From source
+
+```bash
+cd dionysus
+cargo install --path . --root /usr/local
+```
+
+### AUR (to come)
+```bash
+paru -S dionysus-git
+```
+
 ## Local development
 
 Build and run manually:
