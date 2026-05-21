@@ -1,6 +1,6 @@
 use crate::core;
-use crate::ui::model::app_entry_object as aep;
 use crate::ui::controller::selection::selected_or_first;
+use crate::ui::model::app_entry_object as aep;
 use gtk4::prelude::*;
 
 pub fn activate_position(
@@ -31,7 +31,7 @@ pub fn activate_position(
             };
 
             if let Err(err) = core::freq_store::save_freq(&freq_to_save) {
-                eprintln!("Failed to persist launch frequency: {err}");
+                eprintln!("Failed to save launch frequency: {err}");
             }
 
             window.hide();

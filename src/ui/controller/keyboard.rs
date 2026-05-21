@@ -12,12 +12,14 @@ pub fn handle_global_key(
     match key {
         gtk4::gdk::Key::Up => {
             select_prev(selection_model);
-            focus_list_for_navigation(selection_model, entries_list);
+            scroll_selection_into_view(selection_model, entries_list);
+            focus_list_for_navigation(selection_model);
             gtk4::glib::Propagation::Stop
         }
         gtk4::gdk::Key::Down => {
             select_next(selection_model);
-            focus_list_for_navigation(selection_model, entries_list);
+            scroll_selection_into_view(selection_model, entries_list);
+            focus_list_for_navigation(selection_model);
             gtk4::glib::Propagation::Stop
         }
         gtk4::gdk::Key::Return | gtk4::gdk::Key::KP_Enter => {
@@ -26,4 +28,15 @@ pub fn handle_global_key(
         }
         _ => gtk4::glib::Propagation::Proceed,
     }
+}
+
+fn scroll_selection_into_view(
+    selection_model: &gtk4::SingleSelection,
+    entries_list: &gtk4::ListView,
+) {
+    let position = selection_model.selected();
+    if position == gtk4::INVALID_LIST_POSITION {
+        return;
+    }
+    entries_list.scroll_to(position, gtk4::ListScrollFlags::SELECT, None);
 }

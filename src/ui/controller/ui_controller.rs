@@ -33,6 +33,8 @@ impl UiController {
     }
 
     pub fn bind_events(self: &Rc<Self>) {
+        // Weak references will not prevent the value stored in the allocation from being dropped.
+        // Downgrading here therefore avoids a circular reference of UiController -> Widget -> Closure -> Rc<UiController>
         let weak = Rc::downgrade(self);
         self.ui
             .entries_list
@@ -65,6 +67,7 @@ impl UiController {
                 controller.on_prompt_changed();
             }
         });
+
     }
 
     pub fn prepare_for_show(&self) {

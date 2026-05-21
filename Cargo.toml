@@ -1,11 +1,20 @@
 [package]
-name="dionysus"
-version="1.0.0"
-edition="2024"
+name = "dionysus"
+version = "1.0.0"
+edition = "2024"
+
+description = "Lightweight GTK4 application launcher for Wayland"
+license = "GPL-3.0-only"
+repository = "https://github.com/dzavadindev/dionysus"
+documentation = "https://github.com/dzavadindev/dionysus/README.md"
+homepage = "https://github.com/dzavadindev/dionysus"
+
+keywords = ["launcher", "gtk4", "wayland", "linux"]
+categories = ["gui"]
 
 [dependencies]
 freedesktop-desktop-entry = "0.8.1"
-gtk4 = "0.10.3"
+gtk4 = { version = "0.10.3", features = ["v4_12"] }
 gtk4-layer-shell = "0.7.1"
 once_cell = "1.21.4"
 serde = { version = "1.0.217", features = ["derive"] }

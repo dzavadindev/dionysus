@@ -27,9 +27,8 @@ pub fn select_next(selection: &gtk4::SingleSelection) {
     }
 }
 
-pub fn focus_list_for_navigation(selection: &gtk4::SingleSelection, list_view: &gtk4::ListView) {
+pub fn focus_list_for_navigation(selection: &gtk4::SingleSelection) {
     if let Some(position) = selected_or_first(selection) {
         selection.set_selected(position);
     }
-    list_view.grab_focus();
 }

@@ -7,11 +7,17 @@ pub fn build_factory() -> gtk4::SignalListItemFactory {
     let factory = gtk4::SignalListItemFactory::new();
 
     factory.connect_setup(|_, list_item| {
+        let list_item = list_item
+            .downcast_ref::<gtk4::ListItem>()
+            .expect("Expected gtk4::ListItem in setup");
         let row = AppListItemWidget::new();
         list_item.set_child(Some(&row));
     });
 
     factory.connect_bind(|_, list_item| {
+        let list_item = list_item
+            .downcast_ref::<gtk4::ListItem>()
+            .expect("Expected gtk4::ListItem in bind");
         let item = list_item
             .item()
             .and_downcast::<aep::AppEntryObject>()
@@ -26,6 +32,9 @@ pub fn build_factory() -> gtk4::SignalListItemFactory {
     });
 
     factory.connect_unbind(|_, list_item| {
+        let list_item = list_item
+            .downcast_ref::<gtk4::ListItem>()
+            .expect("Expected gtk4::ListItem in unbind");
         if let Some(row) = list_item.child().and_downcast::<AppListItemWidget>() {
             row.clear();
         }

@@ -4,7 +4,7 @@ use crate::ui::controller::selection::selected_or_first;
 use crate::ui::model::entries_store;
 use crate::ui::view;
 use crate::ui::view::list_item_factory as lif;
-use gtk4::prelude::*;
+use gtk4::{PolicyType, prelude::*};
 
 const WINDOW_WIDTH: i32 = 700;
 const WINDOW_MIN_HEIGHT: i32 = 140;
@@ -34,6 +34,7 @@ pub fn build_ui(app: &gtk4::Application, state: core::SharedState) -> UiHandle {
         .hexpand(true)
         .build();
     scrolled_list.add_css_class("launcher-scroll");
+    scrolled_list.set_policy(PolicyType::Never, PolicyType::Never);
 
     let prompt = gtk4::Entry::builder().hexpand(true).build();
     prompt.add_css_class("launcher-prompt");
