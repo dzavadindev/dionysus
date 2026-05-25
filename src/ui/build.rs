@@ -34,7 +34,6 @@ pub fn build_ui(app: &gtk4::Application, state: core::SharedState) -> UiHandle {
         .hexpand(true)
         .build();
     scrolled_list.add_css_class("launcher-scroll");
-    scrolled_list.set_policy(PolicyType::Never, PolicyType::Never);
 
     let prompt = gtk4::Entry::builder().hexpand(true).build();
     prompt.add_css_class("launcher-prompt");

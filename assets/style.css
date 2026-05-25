@@ -9,9 +9,8 @@
 
 .launcher-root {
   padding: 10px;
-  border: 1px solid rgba(190, 196, 211, 0.22);
   border-radius: 14px;
-  background: linear-gradient(180deg, #11151d 0%, #0a0d13 100%);
+  background: rgba(10, 14, 20, 0.6);
 }
 
 .launcher-prompt {
@@ -24,6 +23,11 @@
   background: rgba(10, 14, 20, 0.72);
 }
 
+.launcher-prompt text selection {
+  color: #11151d;
+  background: #f4f8bb;
+}
+
 .launcher-prompt:focus {
   border-color: rgba(137, 173, 255, 0.72);
   box-shadow: inset 0 0 0 1px rgba(137, 173, 255, 0.35);
@@ -31,6 +35,10 @@
 
 .launcher-scroll {
   background: transparent;
+}
+
+.launcher-scroll scrollbar slider {
+  opacity: 0;
 }
 
 .launcher-list {
