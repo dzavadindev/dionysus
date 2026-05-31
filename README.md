@@ -36,4 +36,4 @@ hl.exec_cmd("dionysus init &")
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("dionysus toggle"))
 ```
 
-Licesnsed under GPL-3.0-or-later
+Licensed under GPL-3.0-or-later
