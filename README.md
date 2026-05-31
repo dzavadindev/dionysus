@@ -2,7 +2,10 @@
 
 A Rust GTK4 application launcher for Wayland.
 
-_"dionysus" is currently a working title._
+## About (WIP)
+
+simple app laucnher build with Rust and GTK4
+compatible with any wayland compositor
 
 ## Installing 
 
@@ -13,7 +16,7 @@ cd dionysus
 cargo install --path . --root /usr/local
 ```
 
-### AUR (to come)
+### AUR
 ```bash
 paru -S dionysus-git
 ```
@@ -33,10 +36,4 @@ hl.exec_cmd("dionysus init &")
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("dionysus toggle"))
 ```
 
-## TODO before official release
-
-- Pick a license and add a `LICENSE` file.
-- Set real repository/homepage/docs URLs in `Cargo.toml`.
-- Replace placeholder metadata in `PKGBUILD`.
-- Add desktop entry/icon install lines in `PKGBUILD` once those assets exist.
-- CI/CD pipeline to build and create releases from main.
+Licesnsed under GPL-3.0-or-later
