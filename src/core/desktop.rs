@@ -3,12 +3,23 @@ use crate::core;
 use freedesktop_desktop_entry as fde;
 use std::process::{Command, Stdio};
 
+/// Gets all available desktop files from the standard freedesktop locations.
 pub fn parse_dot_desktop_files(locales: &[String]) -> Vec<fde::DesktopEntry> {
     fde::Iter::new(fde::default_paths())
         .entries(Some(locales))
         .collect()
 }
 
+/// Discovers and converts visible desktop files into launchable applications.
+pub fn load_app_entries() -> Vec<core::AppEntry> {
+    let locales = fde::get_languages_from_env();
+    parse_dot_desktop_files(&locales)
+        .iter()
+        .filter_map(|entry| desktop_file_to_app_entry(entry, &locales))
+        .collect()
+}
+
+/// Converts one freedesktop desktop entry into an application entry.
 pub fn desktop_file_to_app_entry(
     entry: &fde::DesktopEntry,
     locales: &[String],
@@ -54,8 +65,11 @@ fn icon_from_source(icon: fde::IconSource) -> Option<core::IconRef> {
     }
 }
 
+#[derive(Debug)]
 pub enum LaunchError {
+    /// The executable command was empty after desktop-entry field removal.
     EmptyCommand,
+    /// The operating system rejected the process launch.
     Io(std::io::Error),
 }
 
@@ -64,6 +78,17 @@ impl From<std::io::Error> for LaunchError {
         LaunchError::Io(value)
     }
 }
+
+impl std::fmt::Display for LaunchError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::EmptyCommand => formatter.write_str("desktop entry has an empty command"),
+            Self::Io(error) => write!(formatter, "{error}"),
+        }
+    }
+}
+
+impl std::error::Error for LaunchError {}
 
 fn strip_exec_fields(exec: &str) -> &str {
     match exec.find('%') {
@@ -90,6 +115,7 @@ pub fn exec_to_argv(exec: &str) -> Result<Vec<String>, LaunchError> {
     Ok(argv)
 }
 
+/// Starts an executable command detached from the launcher process.
 pub fn launch_exec(exec: &str) -> Result<(), LaunchError> {
     let argv = exec_to_argv(exec)?;
     let (program, args) = argv.split_first().ok_or(LaunchError::EmptyCommand)?;

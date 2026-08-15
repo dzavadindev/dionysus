@@ -3,6 +3,7 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 
+/// Loads launch frequencies from the user's Dionysus state file.
 pub fn load_freq() -> io::Result<HashMap<String, u64>> {
     let path = freq_file_path();
     if !path.exists() {
@@ -15,6 +16,7 @@ pub fn load_freq() -> io::Result<HashMap<String, u64>> {
     Ok(parsed)
 }
 
+/// Saves launch frequencies using a temporary file and atomic rename.
 pub fn save_freq(freq: &HashMap<String, u64>) -> io::Result<()> {
     let path = freq_file_path();
     if let Some(parent) = path.parent() {
