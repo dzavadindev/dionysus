@@ -91,7 +91,7 @@ impl std::fmt::Display for LaunchError {
 
 impl std::error::Error for LaunchError {}
 
-/// Gets rid of the template placeholders
+/// Gets rid of the template placeholders like %U or %f
 ///
 /// TODO:
 ///

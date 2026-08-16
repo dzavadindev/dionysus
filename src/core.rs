@@ -7,6 +7,7 @@ pub mod desktop;
 pub mod freq_store;
 pub mod launcher;
 pub mod search;
+pub mod watcher;
 
 pub use launcher::{LaunchError, Launcher};
 

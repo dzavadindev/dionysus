@@ -14,5 +14,8 @@ categories = ["command-line-utilities"]
 
 [dependencies]
 freedesktop-desktop-entry = "0.8.1"
+gtk4 = { version = "0.11.2", features = ["v4_12"] }
+notify = "8.2.0"
+relm4 = "0.11.0"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.138"
