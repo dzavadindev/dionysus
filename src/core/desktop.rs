@@ -58,6 +58,7 @@ pub fn desktop_file_to_app_entry(
     })
 }
 
+/// Resolves dionysus native IconRef from an fde IconSource
 fn icon_from_source(icon: fde::IconSource) -> Option<core::IconRef> {
     match icon {
         fde::IconSource::Name(name) => Some(core::IconRef::ThemedName(name)),
@@ -90,6 +91,13 @@ impl std::fmt::Display for LaunchError {
 
 impl std::error::Error for LaunchError {}
 
+/// Gets rid of the template placeholders
+///
+/// TODO:
+///
+/// It would make a lot of sense to change the behaviour of this if dionysus
+/// is to support anything more then a simple launcher, which is not in the
+/// plans. But the decision must be made, and be final. TODO for now
 fn strip_exec_fields(exec: &str) -> &str {
     match exec.find('%') {
         Some(idx) => exec[..idx].trim_end(),
@@ -97,6 +105,7 @@ fn strip_exec_fields(exec: &str) -> &str {
     }
 }
 
+/// Make a list of arguments from an exec string
 pub fn exec_to_argv(exec: &str) -> Result<Vec<String>, LaunchError> {
     let cleaned = strip_exec_fields(exec);
     if cleaned.is_empty() {

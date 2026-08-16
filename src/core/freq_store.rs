@@ -31,10 +31,12 @@ pub fn save_freq(freq: &HashMap<String, u64>) -> io::Result<()> {
     Ok(())
 }
 
+/// Returns the path of the JSON file of frequencies
 fn freq_file_path() -> PathBuf {
     state_dir().join("dionysus").join("freq.json")
 }
 
+/// Resolves and returns the state directory
 fn state_dir() -> PathBuf {
     if let Some(state_home) = std::env::var_os("XDG_STATE_HOME") {
         return PathBuf::from(state_home);
