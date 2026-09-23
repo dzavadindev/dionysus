@@ -1,12 +1,12 @@
-//! Command-line entry point for the Dionysus application process.
-
 mod ui;
 
 use dionysus::core::{Launcher, desktop};
-use gtk4::{Application, gio, prelude::*};
-use relm4::RelmApp;
+use relm4::{
+    RelmApp,
+    gtk::{Application, gio, prelude::*},
+};
 use std::env;
-use ui::compose::DModel;
+use ui::window::WindowModel;
 
 const APPLICATION_ID: &str = "com.dzavadindev.relm4-dionysus";
 
@@ -26,7 +26,11 @@ fn run_daemon() {
 
     RelmApp::from_app(application)
         .visible_on_activate(false)
-        .run::<DModel>(launcher);
+        // `init` is a Dionysus command, not a file for GApplication to open.
+        .with_args(vec![
+            env::args().next().unwrap_or_else(|| "dionysus".to_owned()),
+        ])
+        .run::<WindowModel>(launcher);
 }
 
 /// Activates the already-running application instance.
@@ -40,7 +44,7 @@ fn activate_existing() -> bool {
     }
 
     if application.is_remote() {
-        application.activate();
+        application.activate_action("toggle", None);
         true
     } else {
         false
