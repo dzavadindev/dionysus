@@ -1,30 +1,12 @@
 # dionysus
 
-A UI-independent Rust application-launcher library.
+A Rust application launcher with a GTK/Relm4 interface and a UI-independent core.
 
-The library discovers freedesktop `.desktop` entries, ranks applications using
-fuzzy search and launch frequency, starts applications, and persists launch
-frequencies. A future GTK/Relm4 interface can use `dionysus::core::Launcher`
-as its application behavior and keep all rendering state in its own Relm4
-model.
+The core discovers freedesktop `.desktop` entries, ranks applications using
+fuzzy search and launch frequency, starts applications, and sorts based on launch frequencies. Also, the list of entries refreshes when desktop files change! (One of the things I missed in other app launchers I used)
 
-## Library usage
+## Launcher
 
-```rust,no_run
-use dionysus::core::{desktop, Launcher};
-
-let catalog = desktop::load_app_entries();
-let mut launcher = Launcher::from_catalog(catalog, 5)?;
-launcher.set_query("terminal");
-
-if let Some(app) = launcher.selected() {
-    println!("{}", app.name);
-}
-
-# Ok::<(), Box<dyn std::error::Error>>(())
-```
-
-The core contains no GTK, Relm4, or other UI dependencies. Query changes,
-selection movement, and launching can be connected to Relm4 input messages.
+Start the long-running instance with `dionysus init`, then show or hide it with `dionysus toggle`. Use Up/Down to select an app, Enter to launch it and hide the launcher, or Escape to hide it without launching.
 
 Licensed under GPL-3.0-or-later

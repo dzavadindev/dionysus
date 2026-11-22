@@ -12,10 +12,10 @@ const APPLICATION_ID: &str = "com.dzavadindev.relm4-dionysus";
 
 /// Starts the long-running GTK application instance.
 fn run_daemon() {
-    let launcher = match Launcher::from_catalog(desktop::load_app_entries(), 10) {
+    let launcher = match Launcher::from_catalog(desktop::load_app_entries(), 20) {
         Ok(launcher) => launcher,
         Err(error) => {
-            eprintln!("Failed to initialize launcher: {error}");
+            eprintln!("Failed to initialize launcher: {0}", error);
             return;
         }
     };

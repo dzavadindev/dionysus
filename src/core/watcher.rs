@@ -15,7 +15,11 @@ where
     let mut watcher = notify::recommended_watcher(callback)?;
 
     for path in fde::default_paths() {
-        watcher.watch(&path, RecursiveMode::NonRecursive)?;
+        // XDG application directories are optional; a missing one must not
+        // prevent monitoring the directories that do exist.
+        if path.is_dir() {
+            watcher.watch(&path, RecursiveMode::NonRecursive)?;
+        }
     }
 
     Ok(watcher)

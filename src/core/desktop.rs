@@ -1,6 +1,7 @@
 use crate::core;
 
 use freedesktop_desktop_entry as fde;
+use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 
 /// Gets all available desktop files from the standard freedesktop locations.
@@ -128,11 +129,21 @@ pub fn exec_to_argv(exec: &str) -> Result<Vec<String>, LaunchError> {
 pub fn launch_exec(exec: &str) -> Result<(), LaunchError> {
     let argv = exec_to_argv(exec)?;
     let (program, args) = argv.split_first().ok_or(LaunchError::EmptyCommand)?;
-    Command::new(program)
+    let mut command = Command::new(program);
+
+    command
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()?;
+        .stderr(Stdio::null());
+
+    // Keep the child out of the launcher's process group without a pre-exec hook.
+    command.process_group(0);
+
+    let mut child = command.spawn()?;
+    // Reap the detached process without blocking the launcher or leaving zombies.
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
     Ok(())
 }

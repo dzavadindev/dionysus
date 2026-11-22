@@ -103,6 +103,12 @@ impl Launcher {
         self.frequencies.get(id).copied().unwrap_or(0)
     }
 
+    /// Replaces the catalog and recalculates the current ranked results.
+    pub fn replace_catalog(&mut self, catalog: Vec<AppEntry>) {
+        self.catalog = catalog;
+        self.refresh_results();
+    }
+
     /// Replaces the query and recalculates ranked results.
     pub fn set_query(&mut self, query: impl Into<String>) {
         self.query = query.into();
@@ -125,6 +131,13 @@ impl Launcher {
         } else {
             Some((self.selected.unwrap_or(0) + 1).min(self.results.len() - 1))
         };
+    }
+
+    /// Selects a result by its position in the current ranking.
+    pub fn select_index(&mut self, index: usize) {
+        if index < self.results.len() {
+            self.selected = Some(index);
+        }
     }
 
     /// Launches the selected application and persists its updated frequency.
