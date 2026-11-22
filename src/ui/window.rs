@@ -1,4 +1,4 @@
-use dionysus::core::{LaunchError, Launcher, desktop, watcher};
+use dionysus::core::{LaunchError, Launcher, desktop, search::SearchMode, watcher};
 use gtk4_layer_shell::{KeyboardMode, Layer, LayerShell};
 use notify::RecommendedWatcher;
 use relm4::{
@@ -10,6 +10,9 @@ use relm4::{
 pub struct WindowModel {
     launcher: Launcher,
     window: gtk::Window,
+    prompt: gtk::Entry,
+    mode_indicator: gtk::Label,
+    scroller: gtk::ScrolledWindow,
     list: gtk::ListBox,
     _watcher: Option<RecommendedWatcher>,
 }
@@ -22,6 +25,8 @@ pub enum WindowInput {
     MoveDown,
     Select(usize),
     LaunchSelected,
+    QueryChanged(String),
+    ToggleSearchMode,
     CatalogChanged,
 }
 
@@ -37,19 +42,35 @@ impl SimpleComponent for WindowModel {
         gtk::Window {
             set_default_width: 700,
 
-            gtk::ScrolledWindow {
-                set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
-                set_propagate_natural_height: true,
-                set_max_content_height: 400,
+            gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
+
+                #[name = "prompt_overlay"]
+                gtk::Overlay {
+                    #[local_ref]
+                    prompt -> gtk::Entry {
+                        add_css_class: "dionysus-prompt",
+                        set_placeholder_text: Some("Search applications"),
+                        connect_changed[sender] => move |entry| {
+                            sender.input(WindowInput::QueryChanged(entry.text().to_string()));
+                        },
+                    }
+                },
 
                 #[local_ref]
-                list -> gtk::ListBox {
-                    set_selection_mode: gtk::SelectionMode::Single,
-                    connect_row_selected[sender] => move |_, row| {
-                        if let Some(row) = row {
-                            sender.input(WindowInput::Select(row.index() as usize));
-                        }
-                    },
+                scroller -> gtk::ScrolledWindow {
+                    set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
+                    set_propagate_natural_height: true,
+
+                    #[local_ref]
+                    list -> gtk::ListBox {
+                        set_selection_mode: gtk::SelectionMode::Single,
+                        connect_row_selected[sender] => move |_, row| {
+                            if let Some(row) = row {
+                                sender.input(WindowInput::Select(row.index() as usize));
+                            }
+                        },
+                    }
                 }
             }
         }
@@ -60,6 +81,7 @@ impl SimpleComponent for WindowModel {
         root: gtk::Window,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        super::load_styles();
         init_layer_shell(&root);
         init_key_handler(&root, &sender);
 
@@ -91,11 +113,29 @@ impl SimpleComponent for WindowModel {
         let model = WindowModel {
             launcher,
             window: root.clone(),
+            prompt: gtk::Entry::new(),
+            mode_indicator: gtk::Label::new(None),
+            scroller: gtk::ScrolledWindow::new(),
             list: gtk::ListBox::new(),
             _watcher: watcher,
         };
         let list = &model.list;
+        let prompt = &model.prompt;
+        let scroller = &model.scroller;
         let widgets = view_output!();
+        model.mode_indicator.set_halign(gtk::Align::End);
+        model.mode_indicator.set_valign(gtk::Align::Center);
+        model
+            .mode_indicator
+            .add_css_class("dionysus-mode-indicator");
+        model.mode_indicator.set_can_target(false);
+        widgets.prompt_overlay.add_overlay(&model.mode_indicator);
+        model.update_mode_indicator();
+
+        let (_, prompt_height, _, _) = model.prompt.measure(gtk::Orientation::Vertical, -1);
+        model
+            .scroller
+            .set_max_content_height((400 - prompt_height).max(1));
         model.rebuild_list();
 
         ComponentParts { model, widgets }
@@ -105,15 +145,13 @@ impl SimpleComponent for WindowModel {
         match message {
             WindowInput::ToggleRequested => {
                 if self.window.is_visible() {
-                    self.window.hide();
+                    self.hide_and_reset();
                 } else {
                     self.window.present();
-                    if let Some(row) = self.list.selected_row() {
-                        row.grab_focus();
-                    }
+                    self.prompt.grab_focus();
                 }
             }
-            WindowInput::HideRequested => self.window.hide(),
+            WindowInput::HideRequested => self.hide_and_reset(),
             WindowInput::MoveUp => {
                 self.launcher.move_selection_up();
                 self.sync_selection();
@@ -123,11 +161,24 @@ impl SimpleComponent for WindowModel {
                 self.sync_selection();
             }
             WindowInput::Select(index) => self.launcher.select_index(index),
+            WindowInput::QueryChanged(query) => {
+                if query != self.launcher.query() {
+                    self.launcher.set_query(query);
+                    self.rebuild_list();
+                }
+            }
+            WindowInput::ToggleSearchMode => {
+                if let Err(error) = self.launcher.toggle_mode() {
+                    eprintln!("Could not save search mode: {error}");
+                }
+                self.update_mode_indicator();
+                self.rebuild_list();
+            }
             WindowInput::LaunchSelected => match self.launcher.launch_selected() {
-                Ok(()) => self.hide_after_launch(),
+                Ok(()) => self.hide_and_reset(),
                 Err(LaunchError::Frequency(error)) => {
                     eprintln!("Application started, but could not save launch frequency: {error}");
-                    self.hide_after_launch();
+                    self.hide_and_reset();
                 }
                 Err(LaunchError::NoSelection) => {}
                 Err(error) => eprintln!("{error}"),
@@ -141,10 +192,18 @@ impl SimpleComponent for WindowModel {
 }
 
 impl WindowModel {
-    fn hide_after_launch(&mut self) {
+    fn hide_and_reset(&mut self) {
         self.window.hide();
         self.launcher.reset();
+        self.prompt.set_text("");
         self.rebuild_list();
+    }
+
+    fn update_mode_indicator(&self) {
+        self.mode_indicator.set_label(match self.launcher.mode() {
+            SearchMode::Freq => "FREQ",
+            SearchMode::Fuzz => "FUZZ",
+        });
     }
 
     fn sync_selection(&self) {
@@ -154,11 +213,27 @@ impl WindowModel {
             .and_then(|index| self.list.row_at_index(index as i32))
         {
             self.list.select_row(Some(&row));
-            row.grab_focus();
+            let list = self.list.clone();
+            let scroller = self.scroller.clone();
+            glib::idle_add_local_once(move || {
+                if let Some(bounds) = row.compute_bounds(&list) {
+                    let adjustment = scroller.vadjustment();
+                    let top = adjustment.value();
+                    let bottom = top + adjustment.page_size();
+                    let row_top = f64::from(bounds.y());
+                    let row_bottom = f64::from(bounds.y() + bounds.height());
+                    if row_top < top {
+                        adjustment.set_value(row_top);
+                    } else if row_bottom > bottom {
+                        adjustment.set_value(row_bottom - adjustment.page_size());
+                    }
+                }
+            });
         }
     }
 
     fn rebuild_list(&self) {
+        self.scroller.vadjustment().set_value(0.0);
         while let Some(row) = self.list.row_at_index(0) {
             self.list.remove(&row);
         }
@@ -196,8 +271,13 @@ fn init_key_handler(window: &gtk::Window, sender: &ComponentSender<WindowModel>)
     controller.set_propagation_phase(gtk::PropagationPhase::Capture);
     controller.connect_key_pressed({
         let sender = sender.clone();
-        move |_, key, _, _| {
-            if key == gdk::Key::Escape {
+        move |_, key, _, modifiers| {
+            if (key == gdk::Key::Tab || key == gdk::Key::ISO_Left_Tab)
+                && modifiers.contains(gdk::ModifierType::CONTROL_MASK)
+            {
+                sender.input(WindowInput::ToggleSearchMode);
+                glib::Propagation::Stop
+            } else if key == gdk::Key::Escape {
                 sender.input(WindowInput::HideRequested);
                 glib::Propagation::Stop
             } else if key == gdk::Key::Up {

@@ -3,7 +3,7 @@
 use super::AppEntry;
 use super::desktop;
 use super::freq_store;
-use super::search;
+use super::search::{self, SearchMode};
 use std::collections::HashMap;
 use std::io;
 
@@ -39,6 +39,7 @@ impl std::error::Error for LaunchError {}
 pub struct Launcher {
     catalog: Vec<AppEntry>,
     frequencies: HashMap<String, u64>,
+    mode: SearchMode,
     query: String,
     results: Vec<AppEntry>,
     selected: Option<usize>,
@@ -58,6 +59,7 @@ impl Launcher {
         let mut launcher = Self {
             catalog,
             frequencies,
+            mode: SearchMode::default(),
             query: String::new(),
             results: Vec::new(),
             selected: None,
@@ -69,13 +71,28 @@ impl Launcher {
 
     /// Loads persisted frequencies and creates a launcher for `catalog`.
     pub fn from_catalog(catalog: Vec<AppEntry>, result_limit: usize) -> io::Result<Self> {
-        let frequencies = freq_store::load_freq()?;
-        Ok(Self::new(catalog, frequencies, result_limit))
+        let state = freq_store::load_state()?;
+        let mut launcher = Self::new(catalog, state.frequencies, result_limit);
+        launcher.mode = state.mode;
+        launcher.refresh_results();
+        Ok(launcher)
     }
 
     /// Returns the complete catalog currently used for searching.
     pub fn catalog(&self) -> &[AppEntry] {
         &self.catalog
+    }
+
+    /// Returns the current ranking mode.
+    pub fn mode(&self) -> SearchMode {
+        self.mode
+    }
+
+    /// Switches ranking modes, updating results immediately and saving the choice.
+    pub fn toggle_mode(&mut self) -> io::Result<()> {
+        self.mode = self.mode.toggle();
+        self.refresh_results();
+        freq_store::save_state(&self.frequencies, self.mode)
     }
 
     /// Returns the current search query.
@@ -159,7 +176,7 @@ impl Launcher {
             .entry(id.to_string())
             .and_modify(|count| *count += 1)
             .or_insert(1);
-        freq_store::save_freq(&self.frequencies).map_err(LaunchError::Frequency)?;
+        freq_store::save_state(&self.frequencies, self.mode).map_err(LaunchError::Frequency)?;
         self.refresh_results();
         Ok(())
     }
@@ -171,11 +188,12 @@ impl Launcher {
     }
 
     fn refresh_results(&mut self) {
-        self.results = search::rank_apps(
+        self.results = search::rank_apps_with_mode(
             &self.catalog,
             &self.frequencies,
             &self.query,
             self.result_limit,
+            self.mode,
         );
         self.selected = (!self.results.is_empty()).then_some(0);
     }

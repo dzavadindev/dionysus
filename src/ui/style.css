@@ -1,0 +1,8 @@
+/* Global Dionysus styles. Scope selectors to our own widget classes. */
+entry.dionysus-prompt {
+    padding-right: 70px; /* Reserve space for the FREQ/FUZZ overlay indicator. */
+}
+
+label.dionysus-mode-indicator {
+    margin-right: 12px;
+}

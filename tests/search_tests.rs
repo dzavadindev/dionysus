@@ -1,4 +1,7 @@
-use dionysus::core::{AppEntry, search::rank_apps};
+use dionysus::core::{
+    AppEntry,
+    search::{SearchMode, rank_apps, rank_apps_with_mode},
+};
 use std::{collections::HashMap, path::PathBuf};
 
 fn app(id: &str, name: &str) -> AppEntry {
@@ -30,6 +33,45 @@ fn frequency_breaks_equal_scores() {
 
     let ranked = rank_apps(&apps, &frequencies, "term", 10);
     assert_eq!(ranked.first().map(|entry| entry.id.as_str()), Some("b"));
+}
+
+#[test]
+fn freq_mode_prioritizes_count_but_only_accepts_normalized_substrings() {
+    let apps = vec![
+        app("exact", "Terminal"),
+        app("frequent", "Super Terminal App"),
+        app("fuzzy", "Tremolo"),
+    ];
+    let frequencies = HashMap::from([(String::from("frequent"), 30), (String::from("fuzzy"), 100)]);
+
+    let ranked = rank_apps_with_mode(&apps, &frequencies, "Te rM", 15, SearchMode::Freq);
+    let ids: Vec<&str> = ranked.iter().map(|entry| entry.id.as_str()).collect();
+    assert_eq!(ids, vec!["frequent", "exact"]);
+}
+
+#[test]
+fn fuzz_mode_finds_subsequences_and_prioritizes_match_quality() {
+    let apps = vec![
+        app("exact", "Terminal"),
+        app("frequent", "Team Rocket Manager"),
+    ];
+    let frequencies = HashMap::from([(String::from("frequent"), 100)]);
+
+    let ranked = rank_apps_with_mode(&apps, &frequencies, "term", 15, SearchMode::Fuzz);
+    let ids: Vec<&str> = ranked.iter().map(|entry| entry.id.as_str()).collect();
+    assert_eq!(ids, vec!["exact", "frequent"]);
+}
+
+#[test]
+fn result_limit_applies_after_ranking() {
+    let apps: Vec<_> = (0..25)
+        .map(|index| app(&format!("app-{index:02}"), "Terminal"))
+        .collect();
+    let frequencies = HashMap::from([(String::from("app-24"), 100)]);
+    let ranked = rank_apps_with_mode(&apps, &frequencies, "", 15, SearchMode::Freq);
+
+    assert_eq!(ranked.len(), 15);
+    assert_eq!(ranked[0].id, "app-24");
 }
 
 #[test]
