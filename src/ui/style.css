@@ -1,4 +1,11 @@
-/* Global Dionysus styles. Scope selectors to our own widget classes. */
+window.dionysus-window {
+    background-color: transparent;
+}
+
+box.dionysus-panel {
+    background-color: @window_bg_color;
+}
+
 entry.dionysus-prompt {
     padding-right: 70px; /* Reserve space for the FREQ/FUZZ overlay indicator. */
 }

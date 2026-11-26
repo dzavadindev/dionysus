@@ -6,12 +6,14 @@ use relm4::{
     gtk::{self, gdk, gio, glib, prelude::*},
 };
 
+const WINDOW_WIDTH: i32 = 700;
+const WINDOW_HEIGHT: i32 = 400;
+
 #[derive(Debug)]
 pub struct WindowModel {
     launcher: Launcher,
     window: gtk::Window,
     prompt: gtk::Entry,
-    mode_indicator: gtk::Label,
     scroller: gtk::ScrolledWindow,
     list: gtk::ListBox,
     _watcher: Option<RecommendedWatcher>,
@@ -40,12 +42,20 @@ impl SimpleComponent for WindowModel {
     view! {
         #[root]
         gtk::Window {
-            set_default_width: 700,
+            set_default_width: WINDOW_WIDTH,
+            set_default_height: WINDOW_HEIGHT,
+            set_resizable: false,
+            set_decorated: false,
+            add_css_class: "dionysus-window",
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
+                set_halign: gtk::Align::Fill,
+                set_valign: gtk::Align::Center,
+                set_hexpand: true,
+                set_vexpand: false,
+                add_css_class: "dionysus-panel",
 
-                #[name = "prompt_overlay"]
                 gtk::Overlay {
                     #[local_ref]
                     prompt -> gtk::Entry {
@@ -53,6 +63,17 @@ impl SimpleComponent for WindowModel {
                         set_placeholder_text: Some("Search applications"),
                         connect_changed[sender] => move |entry| {
                             sender.input(WindowInput::QueryChanged(entry.text().to_string()));
+                        },
+                    },
+                    add_overlay = &gtk::Label {
+                        set_halign: gtk::Align::End,
+                        set_valign: gtk::Align::Center,
+                        set_can_target: false,
+                        add_css_class: "dionysus-mode-indicator",
+                        #[watch]
+                        set_label: match model.launcher.mode() {
+                            SearchMode::Freq => "FREQ",
+                            SearchMode::Fuzz => "FUZZ",
                         },
                     }
                 },
@@ -114,28 +135,20 @@ impl SimpleComponent for WindowModel {
             launcher,
             window: root.clone(),
             prompt: gtk::Entry::new(),
-            mode_indicator: gtk::Label::new(None),
             scroller: gtk::ScrolledWindow::new(),
             list: gtk::ListBox::new(),
             _watcher: watcher,
         };
+
         let list = &model.list;
         let prompt = &model.prompt;
         let scroller = &model.scroller;
         let widgets = view_output!();
-        model.mode_indicator.set_halign(gtk::Align::End);
-        model.mode_indicator.set_valign(gtk::Align::Center);
-        model
-            .mode_indicator
-            .add_css_class("dionysus-mode-indicator");
-        model.mode_indicator.set_can_target(false);
-        widgets.prompt_overlay.add_overlay(&model.mode_indicator);
-        model.update_mode_indicator();
 
         let (_, prompt_height, _, _) = model.prompt.measure(gtk::Orientation::Vertical, -1);
         model
             .scroller
-            .set_max_content_height((400 - prompt_height).max(1));
+            .set_max_content_height((WINDOW_HEIGHT - prompt_height).max(1));
         model.rebuild_list();
 
         ComponentParts { model, widgets }
@@ -171,7 +184,6 @@ impl SimpleComponent for WindowModel {
                 if let Err(error) = self.launcher.toggle_mode() {
                     eprintln!("Could not save search mode: {error}");
                 }
-                self.update_mode_indicator();
                 self.rebuild_list();
             }
             WindowInput::LaunchSelected => match self.launcher.launch_selected() {
@@ -197,13 +209,6 @@ impl WindowModel {
         self.launcher.reset();
         self.prompt.set_text("");
         self.rebuild_list();
-    }
-
-    fn update_mode_indicator(&self) {
-        self.mode_indicator.set_label(match self.launcher.mode() {
-            SearchMode::Freq => "FREQ",
-            SearchMode::Fuzz => "FUZZ",
-        });
     }
 
     fn sync_selection(&self) {

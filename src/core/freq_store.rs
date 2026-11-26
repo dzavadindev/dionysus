@@ -15,7 +15,7 @@ pub struct LauncherState {
 
 /// Loads the frequency and ranking state file.
 pub fn load_state() -> io::Result<LauncherState> {
-    let path = freq_file_path();
+    let path = state_file_path();
     if !path.exists() {
         return Ok(LauncherState::default());
     }
@@ -32,7 +32,7 @@ pub fn save_state(frequencies: &HashMap<String, u64>, mode: SearchMode) -> io::R
         mode: SearchMode,
     }
 
-    let path = freq_file_path();
+    let path = state_file_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -45,9 +45,9 @@ pub fn save_state(frequencies: &HashMap<String, u64>, mode: SearchMode) -> io::R
     Ok(())
 }
 
-/// Returns the path of the JSON file of frequencies
-fn freq_file_path() -> PathBuf {
-    state_dir().join("dionysus").join("freq.json")
+/// Returns the path of the launcher state file.
+fn state_file_path() -> PathBuf {
+    state_dir().join("dionysus").join("state.json")
 }
 
 /// Resolves and returns the state directory
