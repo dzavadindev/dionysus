@@ -4,4 +4,5 @@
 //! launching, and launch-frequency persistence. User interfaces can compose
 //! [`core::Launcher`] into their own application model.
 
+pub mod config;
 pub mod core;
