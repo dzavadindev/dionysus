@@ -91,16 +91,47 @@ fn rejects_invalid_scales_and_colors_with_line_numbers() {
 }
 
 #[test]
-fn colors_must_appear_in_priority_order() {
-    for input in [
-        "[colors]\nsecondary=#000000",
-        "[colors]\ntertiary=#000000",
-        "[colors]\nprimary=#ffffff\ntertiary=#000000",
-        "[colors]\nsecondary=#000000\nprimary=#ffffff",
+fn standalone_parse_reports_duplicate_key_on_second_line() {
+    let error = config::parse("[ui]\nh_scale=1\nh_scale=2").unwrap_err();
+    assert_eq!(error.line, 3);
+    assert_eq!(error.message, "duplicate key");
+}
+
+#[test]
+fn colors_require_prerequisites_but_not_textual_order() {
+    for (input, line) in [
+        ("[colors]\nsecondary=#000000", 2),
+        ("[colors]\ntertiary=#000000", 2),
+        ("[colors]\nprimary=#ffffff\ntertiary=#000000", 3),
     ] {
-        assert!(config::parse(input).is_err(), "{input}");
+        assert_eq!(config::parse(input).unwrap_err().line, line, "{input}");
     }
-    assert!(config::parse("[colors]\nprimary=#ffffff\nsecondary=#000000").is_ok());
+    let parsed =
+        config::parse("[colors]\ntertiary=#000000\nsecondary=#123456\nprimary=#ffffff").unwrap();
+    assert_eq!(
+        parsed.colors.primary,
+        Some(Rgb {
+            red: 255,
+            green: 255,
+            blue: 255
+        })
+    );
+    assert_eq!(
+        parsed.colors.secondary,
+        Some(Rgb {
+            red: 18,
+            green: 52,
+            blue: 86
+        })
+    );
+    assert_eq!(
+        parsed.colors.tertiary,
+        Some(Rgb {
+            red: 0,
+            green: 0,
+            blue: 0
+        })
+    );
 }
 
 #[test]
@@ -125,27 +156,75 @@ fn xdg_candidates_put_user_before_system_directories() {
     let user = root.path().join("user");
     let system_a = root.path().join("system-a");
     let system_b = root.path().join("system-b");
-    let paths = config::paths_for_dirs(Some(&user), &[system_a.clone(), system_b.clone()]);
+    root.write("user/dionysus/z.ini", "[ui]\nh_scale=2");
+    root.write("user/dionysus/a.ini", "[ui]\nv_scale=2");
+    root.write("user/dionysus/config.ini", "[ui]\nitem_scale=2");
+    root.write("user/dionysus/ignored.txt", "not ini");
+    root.write("system-a/dionysus/z.ini", "[ui]\nh_scale=3");
+    root.write("system-a/dionysus/config.ini", "[ui]\nfont_scale=2");
+    root.write("system-b/dionysus/a.ini", "[ui]\nh_scale=4");
+    root.write("system-b/dionysus/config.ini", "[ui]\nfont_scale=3");
+    let paths = config::paths_for_dirs(Some(&user), &[system_a.clone(), system_b.clone()]).unwrap();
     assert_eq!(
         paths,
         vec![
             user.join("dionysus/config.ini"),
+            user.join("dionysus/a.ini"),
+            user.join("dionysus/z.ini"),
             system_a.join("dionysus/config.ini"),
             system_b.join("dionysus/config.ini"),
+            system_a.join("dionysus/z.ini"),
+            system_b.join("dionysus/a.ini"),
         ]
     );
-    assert!(config::load_from_paths(paths).unwrap().is_none());
 }
 
 #[test]
-fn loads_first_existing_file_without_merging() {
+fn merges_all_existing_files_and_warns_about_overrides() {
     let root = TempDir::new();
-    let user = root.write("user/dionysus/config.ini", "[colors]\nprimary=#fff000");
-    let system = root.write("system/dionysus/config.ini", "[ui]\nh_scale=2");
-    let loaded = config::load_from_paths([user.clone(), system.clone()])
+    let user = root.write("user/dionysus/config.ini", "[ui]\nh_scale=3");
+    let other = root.write("user/dionysus/other.ini", "[ui]\nh_scale=2\nitem_scale=1.5");
+    let system = root.write(
+        "system/dionysus/config.ini",
+        "[ui]\nh_scale=1.25\nfont_scale=2",
+    );
+    let loaded = config::load_from_paths([user.clone(), other.clone(), system.clone()])
         .unwrap()
         .unwrap();
-    assert_eq!(loaded.path, user);
+    assert_eq!(
+        loaded.paths,
+        vec![user.clone(), other.clone(), system.clone()]
+    );
+    assert_eq!(loaded.config.ui.h_scale, 3.0);
+    assert_eq!(loaded.config.ui.item_scale, 1.5);
+    assert_eq!(loaded.config.ui.font_scale, 2.0);
+    assert_eq!(loaded.warnings.len(), 2);
+    assert!(loaded.warnings[0].contains("value '1.25' overwritten by"));
+    assert!(loaded.warnings[0].contains(&other.display().to_string()));
+    assert!(loaded.warnings[1].contains("value '2' overwritten by"));
+    assert!(loaded.warnings[1].contains(&user.display().to_string()));
+
+    let loaded = config::load_from_paths([root.path().join("missing"), system.clone()])
+        .unwrap()
+        .unwrap();
+    assert_eq!(loaded.paths, vec![system]);
+    assert_eq!(loaded.config.ui.h_scale, 1.25);
+    assert!(
+        config::load_from_paths([root.path().join("missing")])
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn merges_colors_across_files_before_validating_dependencies() {
+    let root = TempDir::new();
+    let user = root.write(
+        "user/dionysus/colors.ini",
+        "[colors]\nsecondary=#000000\ntertiary=#123ABC",
+    );
+    let system = root.write("system/dionysus/config.ini", "[colors]\nprimary=#fff000");
+    let loaded = config::load_from_paths([user, system]).unwrap().unwrap();
     assert_eq!(
         loaded.config.colors.primary,
         Some(Rgb {
@@ -154,13 +233,67 @@ fn loads_first_existing_file_without_merging() {
             blue: 0
         })
     );
-    assert_eq!(loaded.config.ui, Config::default().ui);
+    assert_eq!(
+        loaded.config.colors.secondary,
+        Some(Rgb {
+            red: 0,
+            green: 0,
+            blue: 0
+        })
+    );
+    assert_eq!(
+        loaded.config.colors.tertiary,
+        Some(Rgb {
+            red: 18,
+            green: 58,
+            blue: 188
+        })
+    );
+}
 
-    let loaded = config::load_from_paths([root.path().join("missing"), system.clone()])
+#[test]
+fn missing_color_prerequisite_reports_winning_file_and_line() {
+    let root = TempDir::new();
+    let user = root.write("user/dionysus/colors.ini", "[colors]\ntertiary=#123ABC");
+    let system = root.write("system/dionysus/config.ini", "[ui]\nh_scale=2");
+    match config::load_from_paths([user.clone(), system]).unwrap_err() {
+        ConfigError::Parse { path, source } => {
+            assert_eq!(path, user);
+            assert_eq!(source.line, 2);
+            assert!(source.message.contains("requires primary and secondary"));
+        }
+        other => panic!("expected color dependency error, got {other}"),
+    }
+}
+
+#[test]
+fn duplicate_keys_within_one_file_warn_and_last_value_wins() {
+    let root = TempDir::new();
+    let file = root.write("user/dionysus/config.ini", "[ui]\nh_scale=1\nh_scale=2");
+    let loaded = config::load_from_paths([file.clone()]).unwrap().unwrap();
+    assert_eq!(loaded.config.ui.h_scale, 2.0);
+    assert_eq!(loaded.warnings.len(), 1);
+    assert!(loaded.warnings[0].contains(&format!(
+        "{}:2 value '1' overwritten by {}:3 value '2'",
+        file.display(),
+        file.display()
+    )));
+}
+
+#[test]
+fn replaced_invalid_value_is_not_applied_but_malformed_file_still_fails() {
+    let root = TempDir::new();
+    let user = root.write("user/dionysus/config.ini", "[ui]\nh_scale=2");
+    let system = root.write("system/dionysus/config.ini", "[ui]\nh_scale=invalid");
+    let loaded = config::load_from_paths([user.clone(), system])
         .unwrap()
         .unwrap();
-    assert_eq!(loaded.path, system);
     assert_eq!(loaded.config.ui.h_scale, 2.0);
+    let malformed = root.write("system/dionysus/bad.ini", "[bad]\nkey=value");
+    assert!(matches!(
+        config::load_from_paths([user, malformed]),
+        Err(ConfigError::Parse { .. })
+    ));
 }
 
 #[test]
@@ -184,7 +317,41 @@ fn config_command_warns_and_uses_defaults_for_invalid_user_config() {
 }
 
 #[test]
-fn invalid_or_unreadable_first_file_does_not_try_lower_priority() {
+fn config_command_reports_merged_values_and_duplicate_sources() {
+    let root = TempDir::new();
+    let user = root.write("user/dionysus/config.ini", "[colors]\nprimary=#fff000");
+    let other = root.write("user/dionysus/theme.ini", "[colors]\nprimary=#ff0000");
+    let system = root.write(
+        "system/dionysus/config.ini",
+        "[colors]\nprimary=#0000ff\nsecondary=#ffffff",
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_dionysus"))
+        .arg("config")
+        .env("XDG_CONFIG_HOME", root.path().join("user"))
+        .env("XDG_CONFIG_DIRS", root.path().join("system"))
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stdout.contains("primary=#fff000 secondary=#ffffff"));
+    assert!(stdout.contains(&user.display().to_string()));
+    assert!(stdout.contains(&other.display().to_string()));
+    assert!(stdout.contains(&system.display().to_string()));
+    assert!(stderr.contains(&format!(
+        "{}:2 value '#0000ff' overwritten by {}:2 value '#ff0000'",
+        system.display(),
+        other.display()
+    )));
+    assert!(stderr.contains(&format!(
+        "{}:2 value '#ff0000' overwritten by {}:2 value '#fff000'",
+        other.display(),
+        user.display()
+    )));
+}
+
+#[test]
+fn invalid_or_unreadable_file_rejects_entire_merge() {
     let root = TempDir::new();
     let invalid = root.write("user/dionysus/config.ini", "[ui]\nh_scale=0");
     let system = root.write("system/dionysus/config.ini", "[ui]\nh_scale=2");

@@ -17,7 +17,12 @@ const APPLICATION_ID: &str = "com.dzavadindev.relm4-dionysus";
 fn run_daemon() {
     // Appearance settings will be consumed by the UI in the scaling/color patches.
     let _config = match config::load() {
-        Ok(Some(loaded)) => loaded.config,
+        Ok(Some(loaded)) => {
+            for warning in &loaded.warnings {
+                eprintln!("Config warning: {warning}");
+            }
+            loaded.config
+        }
         Ok(None) => Config::default(),
         Err(error) => {
             eprintln!("Invalid config: {error}. Config not applied; using defaults.");
@@ -66,7 +71,18 @@ fn activate_existing() -> bool {
 
 fn print_config() {
     let (config, source) = match config::load() {
-        Ok(Some(loaded)) => (loaded.config, loaded.path.display().to_string()),
+        Ok(Some(loaded)) => {
+            for warning in &loaded.warnings {
+                eprintln!("Config warning: {warning}");
+            }
+            let sources = loaded
+                .paths
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            (loaded.config, sources)
+        }
         Ok(None) => (Config::default(), "no config file (defaults)".to_owned()),
         Err(error) => {
             eprintln!("Invalid config: {error}. Config not applied; using defaults.");
@@ -96,11 +112,11 @@ fn print_help() {
 USAGE:\n    dionysus <COMMAND>\n\n\
 COMMANDS:\n    init\n        Start the Dionysus application instance.\n\n\
     toggle\n        Toggle the running Dionysus application.\n\n\
-    config\n        Validate config.ini and print parsed or default values.\n\n\
+    config\n        Validate and print the merged .ini configuration or defaults.\n\n\
     help, --help\n        Show this help message.\n\n\
-CONFIG FILE:\n    $XDG_CONFIG_HOME/dionysus/config.ini (default: ~/.config/dionysus/config.ini),\n    then each $XDG_CONFIG_DIRS/dionysus/config.ini (default: /etc/xdg).\n\n\
+CONFIG FILES:\n    All .ini files in $XDG_CONFIG_HOME/dionysus (default: ~/.config/dionysus),\n    then $XDG_CONFIG_DIRS/dionysus (default: /etc/xdg/dionysus).\n    Priority: user config.ini, user other .ini files, system config.ini files,\n    system other .ini files. System directories follow XDG_CONFIG_DIRS order;\n    other files are ordered by filename. Duplicate values produce warnings.\n\n\
 [ui] h_scale, v_scale, item_scale, font_scale: positive decimal values (default: 1).\n\
-[colors] primary, secondary, tertiary: #RRGGBB, in that order."
+[colors] primary, secondary, tertiary: #RRGGBB in any order.\n    Secondary requires primary; tertiary requires both."
     );
 }
 
