@@ -1,16 +1,14 @@
-use super::animation::ResultsHeightAnimator;
-use dionysus::core::{LaunchError, Launcher, desktop, search::SearchMode, watcher};
+use super::{animation::ResultsHeightAnimator, style::UiMetrics};
+use dionysus::{
+    config::Config,
+    core::{LaunchError, Launcher, desktop, search::SearchMode, watcher},
+};
 use gtk4_layer_shell::{KeyboardMode, Layer, LayerShell};
 use notify::RecommendedWatcher;
 use relm4::{
     ComponentParts, ComponentSender, SimpleComponent,
     gtk::{self, gdk, gio, glib, prelude::*},
 };
-
-const WINDOW_WIDTH: i32 = 700;
-const WINDOW_HEIGHT: i32 = 400;
-// Space for the panel's padding, border and results separator outside the prompt.
-const PANEL_VERTICAL_SPACE: i32 = 24;
 
 #[derive(Debug)]
 pub struct WindowModel {
@@ -38,7 +36,7 @@ pub enum WindowInput {
 
 #[relm4::component(pub)]
 impl SimpleComponent for WindowModel {
-    type Init = Launcher;
+    type Init = (Launcher, Config);
 
     type Input = WindowInput;
     type Output = ();
@@ -46,8 +44,6 @@ impl SimpleComponent for WindowModel {
     view! {
         #[root]
         gtk::Window {
-            set_default_width: WINDOW_WIDTH,
-            set_default_height: WINDOW_HEIGHT,
             set_resizable: false,
             set_decorated: false,
             add_css_class: "dionysus-window",
@@ -104,11 +100,12 @@ impl SimpleComponent for WindowModel {
     }
 
     fn init(
-        launcher: Self::Init,
+        (launcher, config): Self::Init,
         root: gtk::Window,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        super::load_styles();
+        super::load_styles(&config);
+        let metrics = UiMetrics::from_config(&config.ui);
         init_layer_shell(&root);
         init_key_handler(&root, &sender);
 
@@ -153,9 +150,14 @@ impl SimpleComponent for WindowModel {
         let widgets = view_output!();
 
         let (_, prompt_height, _, _) = model.prompt.measure(gtk::Orientation::Vertical, -1);
+        // Preserve room for the prompt when font/item scales exceed the requested window height.
+        let window_height = metrics
+            .window_height
+            .max(prompt_height + metrics.panel_vertical_space + 1);
+        root.set_default_size(metrics.window_width, window_height);
         model.results_height.set_limit(
             &model.scroller,
-            WINDOW_HEIGHT - prompt_height - PANEL_VERTICAL_SPACE,
+            window_height - prompt_height - metrics.panel_vertical_space,
         );
         model.rebuild_list();
 

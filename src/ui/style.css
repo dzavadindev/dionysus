@@ -3,9 +3,9 @@ window.dionysus-window {
 }
 
 box.dionysus-panel {
-    background-color: rgba(30, 33, 42, 0.97);
-    color: #f2f3f7;
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    background-color: @dy-panel;
+    color: @dy-text;
+    border: 1px solid @dy-border;
     border-radius: 18px;
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
     padding: 8px;
@@ -15,33 +15,33 @@ entry.dionysus-prompt {
     min-height: 48px;
     padding: 0 88px 0 18px; /* Leave room for the mode indicator. */
     background: transparent;
-    color: #f2f3f7;
+    color: @dy-text;
     border: none;
     border-radius: 10px;
     box-shadow: none;
     outline: none;
     font-size: 20px;
     font-weight: 500;
-    caret-color: #f2f3f7;
+    caret-color: @dy-text;
 }
 
 entry.dionysus-prompt placeholder {
-    color: #a9acb9;
+    color: @dy-placeholder;
 }
 
 label.dionysus-mode-indicator {
     margin-right: 14px;
     padding: 5px 8px;
-    background-color: rgba(255, 255, 255, 0.10);
+    background-color: @dy-indicator-bg;
     border-radius: 6px;
-    color: #c8cbda;
+    color: @dy-indicator-text;
     font-size: 11px;
     font-weight: 700;
 }
 
 scrolledwindow.dionysus-results {
     margin-top: 5px;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid @dy-separator;
     background: transparent;
 }
 
@@ -56,21 +56,21 @@ list.dionysus-list row {
     padding: 0 14px;
     border-radius: 9px;
     background: transparent;
-    color: #e4e6ef;
+    color: @dy-row-text;
     font-size: 15px;
 }
 
 list.dionysus-list row:hover {
-    background-color: rgba(255, 255, 255, 0.07);
+    background-color: @dy-hover;
 }
 
 list.dionysus-list row:selected {
-    background-color: #465a81;
-    color: #ffffff;
+    background-color: @dy-focus;
+    color: @dy-focus-text;
 }
 
 scrolledwindow.dionysus-results scrollbar slider {
     min-width: 4px;
-    background-color: rgba(255, 255, 255, 0.30);
+    background-color: @dy-scrollbar;
     border-radius: 4px;
 }

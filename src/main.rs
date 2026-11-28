@@ -15,8 +15,7 @@ const APPLICATION_ID: &str = "com.dzavadindev.relm4-dionysus";
 
 /// Starts the long-running GTK application instance.
 fn run_daemon() {
-    // Appearance settings will be consumed by the UI in the scaling/color patches.
-    let _config = match config::load() {
+    let config = match config::load() {
         Ok(Some(loaded)) => {
             for warning in &loaded.warnings {
                 eprintln!("Config warning: {warning}");
@@ -29,6 +28,8 @@ fn run_daemon() {
             Config::default()
         }
     };
+
+    println!("{:?}", config);
 
     let launcher = match Launcher::from_catalog(desktop::load_app_entries(), 15) {
         Ok(launcher) => launcher,
@@ -48,7 +49,7 @@ fn run_daemon() {
         .with_args(vec![
             env::args().next().unwrap_or_else(|| "dionysus".to_owned()),
         ])
-        .run::<WindowModel>(launcher);
+        .run::<WindowModel>((launcher, config));
 }
 
 /// Activates the already-running application instance.
@@ -102,7 +103,7 @@ fn print_config() {
         show_color(config.colors.secondary),
         show_color(config.colors.tertiary)
     );
-    println!("Appearance values are parsed but not yet applied to the UI.");
+    println!("Appearance settings take effect when the launcher starts; restart to reload.");
 }
 
 /// Prints the available command-line commands.
@@ -115,8 +116,8 @@ COMMANDS:\n    init\n        Start the Dionysus application instance.\n\n\
     config\n        Validate and print the merged .ini configuration or defaults.\n\n\
     help, --help\n        Show this help message.\n\n\
 CONFIG FILES:\n    All .ini files in $XDG_CONFIG_HOME/dionysus (default: ~/.config/dionysus),\n    then $XDG_CONFIG_DIRS/dionysus (default: /etc/xdg/dionysus).\n    Priority: user config.ini, user other .ini files, system config.ini files,\n    system other .ini files. System directories follow XDG_CONFIG_DIRS order;\n    other files are ordered by filename. Duplicate values produce warnings.\n\n\
-[ui] h_scale, v_scale, item_scale, font_scale: positive decimal values (default: 1).\n\
-[colors] primary, secondary, tertiary: #RRGGBB in any order.\n    Secondary requires primary; tertiary requires both."
+[ui] Positive decimal scales (default: 1): h_scale = window width,\n    v_scale = maximum window height, item_scale = prompt/list spacing and height,\n    font_scale = all text sizes.\n\
+[colors] primary = background, secondary = text/borders, tertiary = focus.\n    Values use #RRGGBB in any order.\n    Secondary requires primary; tertiary requires both."
     );
 }
 
