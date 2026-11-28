@@ -1,3 +1,4 @@
+mod animation;
 pub mod window;
 
 pub fn load_styles() {

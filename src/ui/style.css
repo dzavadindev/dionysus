@@ -3,13 +3,74 @@ window.dionysus-window {
 }
 
 box.dionysus-panel {
-    background-color: @window_bg_color;
+    background-color: rgba(30, 33, 42, 0.97);
+    color: #f2f3f7;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 18px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    padding: 8px;
 }
 
 entry.dionysus-prompt {
-    padding-right: 70px; /* Reserve space for the FREQ/FUZZ overlay indicator. */
+    min-height: 48px;
+    padding: 0 88px 0 18px; /* Leave room for the mode indicator. */
+    background: transparent;
+    color: #f2f3f7;
+    border: none;
+    border-radius: 10px;
+    box-shadow: none;
+    outline: none;
+    font-size: 20px;
+    font-weight: 500;
+    caret-color: #f2f3f7;
+}
+
+entry.dionysus-prompt placeholder {
+    color: #a9acb9;
 }
 
 label.dionysus-mode-indicator {
-    margin-right: 12px;
+    margin-right: 14px;
+    padding: 5px 8px;
+    background-color: rgba(255, 255, 255, 0.10);
+    border-radius: 6px;
+    color: #c8cbda;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+scrolledwindow.dionysus-results {
+    margin-top: 5px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    background: transparent;
+}
+
+list.dionysus-list {
+    padding-top: 4px;
+    background: transparent;
+}
+
+list.dionysus-list row {
+    min-height: 36px;
+    margin: 2px 4px;
+    padding: 0 14px;
+    border-radius: 9px;
+    background: transparent;
+    color: #e4e6ef;
+    font-size: 15px;
+}
+
+list.dionysus-list row:hover {
+    background-color: rgba(255, 255, 255, 0.07);
+}
+
+list.dionysus-list row:selected {
+    background-color: #465a81;
+    color: #ffffff;
+}
+
+scrolledwindow.dionysus-results scrollbar slider {
+    min-width: 4px;
+    background-color: rgba(255, 255, 255, 0.30);
+    border-radius: 4px;
 }

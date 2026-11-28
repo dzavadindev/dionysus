@@ -1,3 +1,4 @@
+use super::animation::ResultsHeightAnimator;
 use dionysus::core::{LaunchError, Launcher, desktop, search::SearchMode, watcher};
 use gtk4_layer_shell::{KeyboardMode, Layer, LayerShell};
 use notify::RecommendedWatcher;
@@ -8,6 +9,8 @@ use relm4::{
 
 const WINDOW_WIDTH: i32 = 700;
 const WINDOW_HEIGHT: i32 = 400;
+// Space for the panel's padding, border and results separator outside the prompt.
+const PANEL_VERTICAL_SPACE: i32 = 24;
 
 #[derive(Debug)]
 pub struct WindowModel {
@@ -16,6 +19,7 @@ pub struct WindowModel {
     prompt: gtk::Entry,
     scroller: gtk::ScrolledWindow,
     list: gtk::ListBox,
+    results_height: ResultsHeightAnimator,
     _watcher: Option<RecommendedWatcher>,
 }
 
@@ -82,10 +86,12 @@ impl SimpleComponent for WindowModel {
                 scroller -> gtk::ScrolledWindow {
                     set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
                     set_propagate_natural_height: true,
+                    add_css_class: "dionysus-results",
 
                     #[local_ref]
                     list -> gtk::ListBox {
                         set_selection_mode: gtk::SelectionMode::Single,
+                        add_css_class: "dionysus-list",
                         connect_row_selected[sender] => move |_, row| {
                             if let Some(row) = row {
                                 sender.input(WindowInput::Select(row.index() as usize));
@@ -131,12 +137,13 @@ impl SimpleComponent for WindowModel {
         .map_err(|error| eprintln!("Could not watch desktop entries: {error}"))
         .ok();
 
-        let model = WindowModel {
+        let mut model = WindowModel {
             launcher,
             window: root.clone(),
             prompt: gtk::Entry::new(),
             scroller: gtk::ScrolledWindow::new(),
             list: gtk::ListBox::new(),
+            results_height: ResultsHeightAnimator::new(),
             _watcher: watcher,
         };
 
@@ -146,9 +153,10 @@ impl SimpleComponent for WindowModel {
         let widgets = view_output!();
 
         let (_, prompt_height, _, _) = model.prompt.measure(gtk::Orientation::Vertical, -1);
-        model
-            .scroller
-            .set_max_content_height((WINDOW_HEIGHT - prompt_height).max(1));
+        model.results_height.set_limit(
+            &model.scroller,
+            WINDOW_HEIGHT - prompt_height - PANEL_VERTICAL_SPACE,
+        );
         model.rebuild_list();
 
         ComponentParts { model, widgets }
@@ -205,6 +213,7 @@ impl SimpleComponent for WindowModel {
 
 impl WindowModel {
     fn hide_and_reset(&mut self) {
+        self.results_height.stop(&self.scroller);
         self.window.hide();
         self.launcher.reset();
         self.prompt.set_text("");
@@ -237,7 +246,8 @@ impl WindowModel {
         }
     }
 
-    fn rebuild_list(&self) {
+    fn rebuild_list(&mut self) {
+        let previous_height = self.results_height.begin_update(&self.scroller);
         self.scroller.vadjustment().set_value(0.0);
         while let Some(row) = self.list.row_at_index(0) {
             self.list.remove(&row);
@@ -247,10 +257,7 @@ impl WindowModel {
             let name = gtk::Label::new(Some(&app.name));
             name.set_xalign(0.0);
             name.set_ellipsize(gtk::pango::EllipsizeMode::End);
-            name.set_margin_start(12);
-            name.set_margin_end(12);
-            name.set_margin_top(8);
-            name.set_margin_bottom(8);
+
             row.set_child(Some(&name));
             self.list.append(&row);
         }
@@ -261,6 +268,11 @@ impl WindowModel {
         {
             self.list.select_row(Some(&row));
         }
+        let (_, natural_height, _, _) = self
+            .list
+            .measure(gtk::Orientation::Vertical, self.list.width());
+        self.results_height
+            .animate_to(&self.scroller, previous_height, natural_height);
     }
 }
 
